@@ -129,15 +129,15 @@ for folder in folders:
         except Exception, e:
             print(e)
 
-image_folder = '' #this should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it is empty or does not exist, get them from google docs
-if os.path.isdir(image_folder):
+images = 'RawDataIDs.csv' #If this is a folder, it should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it a filename, should be a csv file of ID,URL
+if os.path.isdir(images):
     pattern = re.compile("(.*)_580_360.jpg$");
-    for img_file in os.listdir(image_folder):
+    for img_file in os.listdir(images):
         match = pattern.search(img_file)
         if match is not None:
             tmpID = match.group(1)
-            small_file = os.path.join(image_folder, img_file)
-            match_glob = os.path.join(image_folder, tmpID+".*");
+            small_file = os.path.join(images, img_file)
+            match_glob = os.path.join(images, tmpID+".*");
             large_files = glob.glob(match_glob)
             if len(large_files) ==1:
                 print("opening {} and {} (ID={})".format(small_file, large_files[0], tmpID))
@@ -145,19 +145,25 @@ if os.path.isdir(image_folder):
             else:
                 print("problem with opening {}: found {} files when matching {}".format(small_file, len(large_files), match_glob))                
 else:
-    gc = gspread.login("EOLBHL2014","xtoyeriircodojww")
-    sh = gc.open_by_key("0AsbkF6jVHju6dEktcmFfVzBEeV9PUURjSnJTTzJndVE") #this is the 35000 row spreadsheet
-    #sh = gc.open_by_key("0AsbkF6jVHju6dGVKYUpiQmpDbjRweVo3YUNkeG9adEE") #this is the test spreadsheet
-    worksheet = sh.get_worksheet(0)
-    names = worksheet.row_values(1)
-
-    random.seed(123);
-    test_rows = random.sample(range(2, worksheet.row_count+1), 400)
+    N = 400
+    random.seed(123)
+    #avoid slurping the whole file into memory by using reservoir sampling 
+    #code from http://data-analytics-tools.blogspot.co.uk/2009/09/reservoir-sampling-algorithm-in-perl.html
+    sample = [];
+    with open(images, 'r') as file:
+        header = file.readline().strip().split(',')
     
-    print("using rows ", end="")
-    print(", ".join([str(x) for x in test_rows]))
-    for r in test_rows:
-        row = dict(zip(names, worksheet.row_values(r))) # r+1 so that we miss the first (header) row
+        for i,line in enumerate(file):
+            if i < N:
+                sample.append(line)
+            elif i >= N and random.random() < N/float(i+1):
+                replace = random.randint(0,len(sample)-1)
+                sample[replace] = line
+
+    print("using data objects ", end="")
+    print(", ".join([x.split(',',1)[0] for x in sample]))
+    for r in sample:
+        row = dict(zip(header, r.strip().split(','))) # r+1 so that we miss the first (header) row
         row['fullsizeURL'] = row['URL'].replace("_260_190.jpg", "_orig.jpg")
         print("Data_object {}: opening {}".format(row['ID'], row['URL'])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
         req1 = urllib.urlopen(row['URL'])
