@@ -14,7 +14,7 @@ from image_tiling import tiled_img
 from contour_metrics import contour_metrics, contour_metrics_output
 import frame_detection
 import background_detection
-
+import shadow_detection
 
 def refine_background_via_grabcut(img, is_background, dilate=False):
     #use grabcut (http://docs.opencv.org/trunk/doc/py_tutorials/py_imgproc/py_grabcut/py_grabcut.html) 
