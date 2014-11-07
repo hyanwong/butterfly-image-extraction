@@ -129,7 +129,7 @@ for folder in folders:
         except Exception, e:
             print(e)
 
-image_folder = 'images' #this should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it is empty or does not exist, get them from google docs
+image_folder = '' #this should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it is empty or does not exist, get them from google docs
 if os.path.isdir(image_folder):
     pattern = re.compile("(.*)_580_360.jpg$");
     for img_file in os.listdir(image_folder):
@@ -145,25 +145,25 @@ if os.path.isdir(image_folder):
             else:
                 print("problem with opening {}: found {} files when matching {}".format(small_file, len(large_files), match_glob))                
 else:
-    gc = gspread.login("EOLBHL2014","EoL/BHL2014")
-    sh = gc.open_by_key("0AsbkF6jVHju6dGttX1NoWmpoM0d3RDgyN2ZROHp6enc") #this is the 35000 row spreadsheet
+    gc = gspread.login("EOLBHL2014","xtoyeriircodojww")
+    sh = gc.open_by_key("0AsbkF6jVHju6dEktcmFfVzBEeV9PUURjSnJTTzJndVE") #this is the 35000 row spreadsheet
     #sh = gc.open_by_key("0AsbkF6jVHju6dGVKYUpiQmpDbjRweVo3YUNkeG9adEE") #this is the test spreadsheet
     worksheet = sh.get_worksheet(0)
-    image_IDs = worksheet.col_values(1)
-    URLs_1 = worksheet.col_values(2)
-    URLs_2 = worksheet.col_values(3)
+    names = worksheet.row_values(1)
 
     random.seed(123);
-    test_rows = random.sample(range(len(image_IDs)-1), 400)
+    test_rows = random.sample(range(2, worksheet.row_count+1), 400)
+    
     print("using rows ", end="")
     print(", ".join([str(x) for x in test_rows]))
-    for row in test_rows:
-        i=row+1; #miss the first (header) row
-        print("Data_object {}: opening {}".format(image_IDs[i], URLs_1[i])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
-        req1 = urllib.urlopen(URLs_1[i])
+    for r in test_rows:
+        row = dict(zip(names, worksheet.row_values(r))) # r+1 so that we miss the first (header) row
+        row['fullsizeURL'] = row['URL'].replace("_260_190.jpg", "_orig.jpg")
+        print("Data_object {}: opening {}".format(row['ID'], row['URL'])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
+        req1 = urllib.urlopen(row['URL'])
         arr1 = np.asarray(bytearray(req1.read()), dtype=np.uint8)
-        print("Data_object {}: opening {}".format(image_IDs[i], URLs_2[i]))
-        req2 = urllib.urlopen(URLs_2[i])
+        print("Data_object {}: opening {}".format(row['ID'], row['fullsizeURL']))
+        req2 = urllib.urlopen(row['fullsizeURL'])
         arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
-        grab_butterfly(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), image_IDs[i], contour_dir, folders[0], folders[1])
+        grab_butterfly(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1])
 
