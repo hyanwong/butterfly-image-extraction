@@ -10,6 +10,9 @@ import os
 import glob
 import sys
 
+from basic_imgproc import *
+from image_tiling import tiled_img
+
 def crop_frame(img, min_prop_picture_in_frame):
     '''Detect if picture is in a frame, by detecting rectangles and crop if any contain >75% of the image.
     This code does not seem to work consistently (e.g. on eol.org/data_objects/17762955): it probably needs tweaking'''
@@ -398,7 +401,7 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
 
         if composite_file_dir is not None:
             composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
-            tiled = compound_img()
+            tiled = tiled_img()
             tiled.add(small_img, "Original")
             tiled.add(despeckled, "Bilateral Filter")
             tiled.add(quantized, "Meanshift filter")
