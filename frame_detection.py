@@ -3,7 +3,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 
-def detect_frame_by_rectangular_contour(img, min_prop_picture_in_frame):
+def using_rectangular_contour(img, min_prop_picture_in_frame):
     '''Detect if picture is in a frame, by detecting rectangles and crop if any contain >75% of the image.
     This code does not seem to work consistently (e.g. on eol.org/data_objects/17762955): it probably needs tweaking'''
     h, w = img.shape[:2]
@@ -51,7 +51,7 @@ def detect_frame_by_rectangular_contour(img, min_prop_picture_in_frame):
     else:
         return 0,0,0,0
 
-def detect_frame_by_floodfill(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, horiz_vert_max_gradient = 1/40):
+def using_floodfill(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, horiz_vert_max_gradient = 1/40):
     '''Detect if picture is in a frame, by flood filling from the top left corner, then looking for long horizontal or vertical lines in the resulting mask.
     Horizontal lines are defined as -horiz_vert_max_gradient < GRAD < horiz_vert_max_gradient. Verical lines -horiz_vert_max_gradient < 1/GRAD < horiz_vert_max_gradient
     We only choose lines within a certain fraction of the edge of the picture (10%, by default). If there are left, right, top AND bottom lines, assume it is a frame.
