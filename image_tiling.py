@@ -4,9 +4,10 @@ import numpy as np
 
 class tiled_img:
     '''make an image consisting of a number of pictures tiled together. By default add left to right. Use add(..., newrow=TRUE) to add a new row.'''
-    main_image = None
-    prev_right_edge = 0
-    colours = [[255,0,0],[0,0,255], [0,255,0],[0,255,255],[255,0,255],[255,255,0]]
+    def __init__(self):
+        self.main_image = None
+        self.prev_right_edge = 0
+        self.colours = [[255,0,0],[0,0,255], [0,255,0],[0,255,255],[255,0,255],[255,255,0]]
 
     def add(self, img, name=None, newrow=False, contours=None, focal_contours=[]):
         #first convert to BGRA with alpha channel, so we can overlay translucent contours
@@ -43,5 +44,5 @@ class tiled_img:
         self.main_image[(bottom-h):bottom, self.prev_right_edge:self.prev_right_edge+w] = cv2.cvtColor(img,cv2.COLOR_BGRA2BGR)
         self.prev_right_edge += w
 
-    def imwrite(filename):
-    	cv2.imwrite(filename, self.main_image)
+    def imwrite(self, filename):
+        cv2.imwrite(filename, self.main_image)

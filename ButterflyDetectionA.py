@@ -12,6 +12,7 @@ import sys
 
 from basic_imgproc import *
 from image_tiling import tiled_img
+from contour_metrics import contour_metrics, contour_metrics_output
 
 def crop_frame(img, min_prop_picture_in_frame):
     '''Detect if picture is in a frame, by detecting rectangles and crop if any contain >75% of the image.
@@ -111,109 +112,6 @@ def crop_border(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, horiz_
         return best[0], best[1], w-best[2], h-best[3]
     else:
         return 0,0,0,0
-
-
-def save_Hu_moments(thresholded, EoLobjectID, contour_dir, filename):
-    '''Save to file the 7 Hu moments for each contour in each image for statistical analysis (e.g. for analysis to predict
-    which are butterfly shaped). Also save images of each contour so we can look through and mark by hand which are the
-    butterfly outlines'''
-    if not hasattr(save_Hu_moments, "writefile"):
-        save_Hu_moments.writefile = open(os.path.join(contour_dir,filename), 'w')  # it doesn't exist yet, so initialize it
-        save_Hu_moments.writefile.write("img-contour	crude.points	simp.crude.points	smooth.points	simp.smooth.points	area	hu1	hu2	hu3	hu4	hu5	hu6	hu7\n")
-
-    crude_contours = cv2.findContours(thresholded.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[0]
-    smooth_contours = cv2.findContours(thresholded.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
-    if len(crude_contours) != len(smooth_contours):
-        print("oops - the two contour methods should give the same number of contour areas")
-        exit
-
-    for i in range(len(smooth_contours)):
-        if cv2.contourArea(smooth_contours[i]) > 0.001*thresholded.shape[0]*thresholded.shape[1]: #only pick areas > 0.1% of the area
-            roi = np.asarray(cv2.boundingRect(smooth_contours[i]))
-            img = np.zeros((roi[3], roi[2],3), np.uint8)
-            cv2.drawContours(img, [smooth_contours[i]-roi[0:2]], 0, (255,255,255), 2)
-            cv2.imwrite(os.path.join(contour_dir, "{}-{}.jpg".format(EoLobjectID, i)), img)
-#            np.save(os.path.join(contour_dir, "{}-{}.npy".format(EoLobjectID, i)), smooth_contours[i]) #save the contour coordinates
-            
-            Hu_text = "\t".join(np.char.mod('%e', cv2.HuMoments(cv2.moments(smooth_contours[i]))).flatten())
-            contour_lengths = "\t{}\t{}\t{}\t{}".format(len(crude_contours[i]), len(cv2.approxPolyDP(crude_contours[i],1,True)), len(smooth_contours[i]), len(cv2.approxPolyDP(smooth_contours[i],1,True)))
-            save_Hu_moments.writefile.write("{}-{}\t{}\t{}\t{}\n".format(EoLobjectID ,i, contour_lengths, cv2.contourArea(smooth_contours[i]), Hu_text))
-            save_Hu_moments.writefile.flush()
-        
-def prob_butterfly(crude_contours, smooth_contours, eqn=0):
-    '''This is based on logistic regression of Hu moments for known butterfly and non-butterfly shapes. The analysis can be done by calling 
-    save_Hu_moments(mask_after_grabcut, EoLobjectID) to save the Hu moments for contours from a number of images to a file. Once the correct butterfly contours have
-    been identified by hand, and their names (as ObjID-ContourNum) stored in a file, say "butterflies.data", the analysis can then be done in R by calling
-        Hu.data <- read.delim("Hu.data", row.names=1)
-        Hu.data$butterfly <- 0
-        Hu.data[scan("butterflies.data", "character"), "butterfly"] <- 1
-        Hu.data$logh6 <- ifelse(Hu.data$hu6 < 1e-11, log(1e-11), log(Hu.data$hu6)); #6th Hu moment is useful when logged, but needs truncation to avoid neg numbers. Try hist(Hu.data$logh6) to inspect
-        model <- glm(butterfly ~ hu1 + I(hu1^2) + logh6+ I(log(smooth.points)/log(crude.points)), Hu.data, family="binomial")
-        summary(model)
-        complex_model <- glm(butterfly ~ poly(hu1, 2) + logh6+ (log(smooth.points)+log(crude.points)+log(simp.crude.points))^3, Hu.data, family="binomial")
-        summary(complex_model)
-        simple_model <- glm(butterfly ~ log(hu1) + I(log(hu1)^2) + log(hu2) + I(log(hu2)^2) + hu4 , Hu.data, family="binomial")
-        summary(simple_model)
-    This should give something like
-
-                                          Estimate Std. Error z value Pr(>|z|)    
-(Intercept)                              -72.49121   11.65517  -6.220 4.98e-10 ***
-hu1                                      338.98944   89.40650   3.792 0.000150 ***
-I(hu1^2)                                -698.18014  194.39183  -3.592 0.000329 ***
-logh6                                     -0.27832    0.05244  -5.307 1.11e-07 ***
-I(log(smooth.points)/log(crude.points))   35.06491    5.94520   5.898 3.68e-09 ***
-
-    Null deviance: 551.20  on 451  degrees of freedom
-Residual deviance: 107.77  on 447  degrees of freedom
-AIC: 117.77
-
-
-or for the more complex model
-
-or omitting the jaggedness param
-
-(Intercept)   -87.185     13.941  -6.254 4.00e-10 ***
-hu1           710.382    132.003   5.382 7.38e-08 ***
-I(hu1^2)    -1369.683    313.453  -4.370 1.24e-05 ***
-hu2            -9.629     77.719  -0.124 0.901402    
-I(hu2^2)    -7695.691   2987.023  -2.576 0.009984 ** 
-hu4         -4701.824   1352.317  -3.477 0.000507 ***
----
-    Null deviance: 476.24  on 382  degrees of freedom
-Residual deviance: 161.16  on 377  degrees of freedom
-AIC: 173.16
-
-
-    '''
-    if len(crude_contours) != len(smooth_contours):
-        print("oops - the two contour methods should give the same number of contour areas")
-        exit
-
-    values = np.zeros(len(smooth_contours))
-    for i in range(len(smooth_contours)):
-        if len(crude_contours[i])==1: #to avoid div by 0 in smoothness calc. This is a pointless contour anyway
-            values[i]=0
-        else:
-            Hu = cv2.HuMoments(cv2.moments(smooth_contours[i]))
-            hu1 = Hu[0]
-            hu2 = Hu[1]
-            hu4 = Hu[3]
-            if(Hu[5] < 1e-11):
-                log_hu6 = np.log(1e-11)
-            else:
-                log_hu6 = np.log(Hu[5])
-            smoothness = np.log(len(smooth_contours[i]))/np.log(len(crude_contours[i])) #should help weed out contours with lots of straight lines
-
-            if eqn==0:
-                x = -82.70066 +417.23428*hu1 -862.08239*hu1**2 -0.31457*log_hu6 + 35.49917*smoothness
-            elif eqn==1:
-                epsilon=1e-4
-                x = -334.561 -142.494*np.log(hu1+epsilon) -48.361*np.log(hu1+epsilon)**2 -46.982*np.log(hu4+epsilon) -2.762*np.log(hu4+epsilon)**2 + 41.824*smoothness
-            elif eqn==3:
-                x = -86.185 + 710.382*hu1   -1369.683*hu1**2 -9.629*hu2 -7695.691*hu2**2 -4701.824*hu4
-            values[i] = np.exp(x)/(1+np.exp(x))
-        
-    return values
 
 
 #def find_background_using_meanshift(img, ):
@@ -333,23 +231,6 @@ def refine_background_via_grabcut(img, is_background, dilate=False):
     cv2.grabCut(img, grabcut_mask,rect,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_MASK)
     return np.where((grabcut_mask ==2)|(grabcut_mask ==0),0,1).astype(np.uint8)
 
-
-def find_butterfly(thresholded):
-    '''Find all contours in the thresholded image, and for each contour, use the Hu moments, plus an estimate of the proportion of the contour that consists of straight lines,
-    as predictors of the probability that a contour represents a butterfly shape. For details of the model, see the function prob_butterfly()'''
-    cutoff = 0.001*thresholded.shape[0]*thresholded.shape[1]
-    thresholded = cv2.normalize(thresholded, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX).astype(np.uint8)
-    crude_contours = cv2.findContours(thresholded.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[0]
-    smooth_contours= cv2.findContours(thresholded.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
-    prob = []
-    index = []
-        
-    for i in [0]: #different numbers represent different statistical models used in prob_butterfly
-        pr = prob_butterfly(crude_contours, smooth_contours, i)
-        p_large = [pr[x] if cv2.contourArea(smooth_contours[x]) > cutoff else 0 for x in range(len(pr))]
-        prob.append(np.max(p_large))
-        index.append(np.argmax(p_large))
-    return prob, index, crude_contours 
     
 
 def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = True, butterfly_with_contour_file_dir = "butterflies"):
@@ -387,12 +268,19 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
     conservative_background = cv2.resize(conservative_background, (W, H))
     mask_after_grabcut = refine_background_via_grabcut(large_img, conservative_background)
     
+    butterfly_metrics = contour_metrics(mask_after_grabcut)
+    
     if param_dir is not None:
-        save_Hu_moments(mask_after_grabcut*255, EoLobjectID, param_dir, "param.data")
+        try:
+            param_output
+        except NameError:
+            params_output = contour_metrics_output(param_dir, "param.data")
+        else:
+            params_output.write(butterfly_metrics, EoLobjectID, )
 
     if composite_file_dir is not None or butterfly_with_contour_file_dir is not None:
 
-        p, idx, contours = find_butterfly(mask_after_grabcut)
+        p, idx, contours = butterfly_metrics.find_butterfly()
 
         idx_txt = " ".join(np.char.mod("%i", idx).flatten())
         floodfilled_percent = cv2.countNonZero(mask_after_flood) / mask_after_flood.shape[0] / mask_after_flood.shape[1] * 100
@@ -419,7 +307,7 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
             butterfly = cv2.bitwise_and(img, img, mask = contour_mask)
             tiled.add(butterfly, "Best")
 
-			tiled.imwrite(composite_filename)
+            tiled.imwrite(composite_filename)
 
         if butterfly_with_contour_file_dir is not None:
             butterfly_filenames = [os.path.join(butterfly_with_contour_file_dir,"{}_{}_{:1.5f}_{}.jpg".format(category, chr(i + ord('a')), p[i], EoLobjectID)) for i in range(len(p))]
@@ -514,7 +402,7 @@ for folder in folders:
         except Exception, e:
             print(e)
 
-image_folder = '' #this should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it is empty or does not exist, get them from google docs
+image_folder = 'images' #this should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it is empty or does not exist, get them from google docs
 if os.path.isdir(image_folder):
     pattern = re.compile("(.*)_580_360.jpg$");
     for img_file in os.listdir(image_folder):
