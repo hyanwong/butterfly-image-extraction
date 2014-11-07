@@ -148,14 +148,14 @@ class contour_metrics_output:
         self.writefile = open(os.path.join(contour_dir,filename), 'w')
         self.writefile.write("{}\n".format(contour_metrics.header()))
 
-    def write(self, contour_metrics_obj, EoLobjectID):
+    def write(self, contour_metrics_obj, EoLobjectID, output_contour_pics=False, output_numpy_contour_coords=False):
         for i in range(contour_metrics_obj.n_contours):
             if contour_metrics_obj.good_sized_area(i):
-                #write contour to image file
-                cv2.imwrite(os.path.join(self.contour_dir, "{}-{}.jpg".format(EoLobjectID, i)), contour_metrics_obj.contour_image(i))
+                if output_contour_pics:
+                    cv2.imwrite(os.path.join(self.contour_dir, "{}-{}.jpg".format(EoLobjectID, i)), contour_metrics_obj.contour_image(i))
 
-                #save the contour coordinates
-#                np.save(os.path.join(contour_dir, "{}-{}.npy".format(EoLobjectID, i)), smooth_contours[i])
+                if output_numpy_contour_coords:
+                    np.save(os.path.join(self.contour_dir, "{}-{}.npy".format(EoLobjectID, i)), contour_metrics_obj.smooth_contours[i])
 
                 #write params to param file
                 rowname = "{}-{}".format(EoLobjectID ,i)

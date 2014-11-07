@@ -25,14 +25,12 @@ def refine_background_via_grabcut(img, is_background, dilate=False):
     grabcut_mask = np.where(is_background!=0,cv2.GC_BGD,cv2.GC_PR_FGD).astype(np.uint8) #background should be 0, probable foreground = 3 
     cv2.grabCut(img, grabcut_mask,rect,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_MASK)
     return np.where((grabcut_mask ==2)|(grabcut_mask ==0),0,1).astype(np.uint8)
-
     
 
 def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = True, butterfly_with_contour_file_dir = "butterflies"):
     '''Process a small and a large butterfly file, under a certain objectID. If a param_dir is give, save potential butterfly outlines and relevant parameters there (useful 
     for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If save_composite_file is given, save a composite, tiled image 
-    of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir (the crop of the large image containing the butterfly, plus a 
-    npy file giving the contour points of the butterfly outline)'''
+    of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir'''
     H, W = large_img.shape[:2]
     h, w = small_img.shape[:2]
     flood_cutoff = {'n_areas':3, 'percent': 25.0} #cutoffs for deciding if image is pinned
@@ -67,8 +65,7 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
     if param_dir is not None:
         if not hasattr(grab_butterfly, "params_output"):
             grab_butterfly.params_output = contour_metrics_output(param_dir, "param.data")
-        else:
-            grab_butterfly.params_output.write(butterfly_metrics, EoLobjectID)
+        grab_butterfly.params_output.write(butterfly_metrics, EoLobjectID, output_contour_pics=True)
 
     if composite_file_dir is not None or butterfly_with_contour_file_dir is not None:
 
