@@ -10,47 +10,6 @@ import os
 import glob
 import sys
 
-class compound_img:
-    '''make an image consisting of a number of pictures tiled together. By default add left to right. Use add(..., newrow=TRUE) to add a new row.'''
-    main_image = None
-    prev_right_edge = 0
-    colours = [[255,0,0],[0,0,255], [0,255,0],[0,255,255],[255,0,255],[255,255,0]]
-
-    def add(self, img, name=None, newrow=False, contours=None, focal_contours=[]):
-        #first convert to BGRA with alpha channel, so we can overlay translucent contours
-        if len(img.shape) < 3 or img.shape[2] == 1:
-            img = cv2.cvtColor(img,cv2.COLOR_GRAY2BGRA)
-        elif len(img.shape) < 4:
-            img = cv2.cvtColor(img,cv2.COLOR_BGR2BGRA)
-        else:
-            img = img.copy()
-            
-        h, w = img.shape[:2]
-    
-        if self.main_image is None:
-            self.main_image = np.zeros((h,w,3), np.uint8)
-
-        if newrow:
-            newrow = np.zeros((h,self.main_image.shape[1],3), np.uint8)
-            self.main_image = np.concatenate((self.main_image,newrow)) #add enough space for another row
-            self.prev_right_edge = 0
-
-        width_diff = self.prev_right_edge + w - self.main_image.shape[1]
-        if width_diff > 0:
-            self.main_image = np.concatenate((self.main_image, np.zeros((self.main_image.shape[0],width_diff,3), np.uint8)), 1) #extend main.image width to allow for new pic
-    
-        if contours is not None:
-            cv2.drawContours(img, contours, -1, self.colours[0] + [100])
-            for i in range(len(focal_contours)):
-                cv2.drawContours(img, contours, focal_contours[i], self.colours[i+1] + [200])
-            
-        if name is not None:
-            cv2.putText(img, name, (4, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, 255)
-
-        bottom = self.main_image.shape[0]
-        self.main_image[(bottom-h):bottom, self.prev_right_edge:self.prev_right_edge+w] = cv2.cvtColor(img,cv2.COLOR_BGRA2BGR)
-        self.prev_right_edge += w
-
 def crop_frame(img, min_prop_picture_in_frame):
     '''Detect if picture is in a frame, by detecting rectangles and crop if any contain >75% of the image.
     This code does not seem to work consistently (e.g. on eol.org/data_objects/17762955): it probably needs tweaking'''
@@ -439,25 +398,26 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
 
         if composite_file_dir is not None:
             composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
-            full = compound_img()
-            full.add(small_img, "Original")
-            full.add(despeckled, "Bilateral Filter")
-            full.add(quantized, "Meanshift filter")
+            tiled = compound_img()
+            tiled.add(small_img, "Original")
+            tiled.add(despeckled, "Bilateral Filter")
+            tiled.add(quantized, "Meanshift filter")
 
             mask_details = np.zeros((img.shape[0], img.shape[1], 3), np.uint8)
             mask_details[...,2:3] = (1-mask_after_flood)*255
             mask_details[...,1] = cv2.resize((1-conservative_background)*255, (w,h))[crop_top:(h-crop_bottom), crop_left:(w-crop_right)]
             mask_details[...,0] = cv2.resize(mask_after_grabcut*255, (w,h))[crop_top:(h-crop_bottom), crop_left:(w-crop_right)]
-            full.add(255-mask_details, "masks", True)
+            tiled.add(255-mask_details, "masks", True)
     
             for i in idx:
                 contour_mask = np.zeros((img.shape[0], img.shape[1], 1), np.uint8)
                 contour = contours[i] * [w/W, h/H] - [crop_left, crop_top]
                 cv2.drawContours(contour_mask,[np.rint(contour).astype(int)], 0, color=1, thickness = cv2.cv.CV_FILLED)
             butterfly = cv2.bitwise_and(img, img, mask = contour_mask)
-            full.add(butterfly, "Best")
+            tiled.add(butterfly, "Best")
 
-            cv2.imwrite(composite_filename, full.main_image)
+			tiled.imwrite(composite_filename)
+
         if butterfly_with_contour_file_dir is not None:
             butterfly_filenames = [os.path.join(butterfly_with_contour_file_dir,"{}_{}_{:1.5f}_{}.jpg".format(category, chr(i + ord('a')), p[i], EoLobjectID)) for i in range(len(p))]
             contour_filenames = [os.path.join(butterfly_with_contour_file_dir,"{}_{}_{:1.5f}_{}.npy".format(category, chr(i + ord('a')), p[i], EoLobjectID)) for i in range(len(p))]
@@ -497,15 +457,15 @@ def remove_shadows(img):
     # use the sobel edge detector on each channel of the c1c2c3 colour space, then merge the sobel values together in some way
     # shadows should have c1 c2 and c3 relatively unchanged. Also exclude pixels that have brightness > standard background.
     
-    full.add(c1c2c3, "c1c2c3")
+    tiled.add(c1c2c3, "c1c2c3")
     additive_sob = sobel(c1c2c3[...,0])/3 + sobel(c1c2c3[...,1])/3 + sobel(c1c2c3[...,2])/3
     additive_sob = cv2.normalize(additive_sob, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX).astype(np.uint8)
 
-    full.add(additive_sob, "c1c2c3_Sobel")
+    tiled.add(additive_sob, "c1c2c3_Sobel")
 
     thresh = cv2.threshold(additive_sob, 100, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
     
-    full.add(thresh, "c1c2c3_Sobel Otsu_thresh")
+    tiled.add(thresh, "c1c2c3_Sobel Otsu_thresh")
     
     #would be good here to use a multi-channel edge detector, but Canny is not implemented for multiple channels. See http://stackoverflow.com/questions/8092059/color-edge-detection-opencv 
 
@@ -519,15 +479,15 @@ def remove_shadows(img):
     additive_sob = sobel(c1c2c3[...,0])/3 + sobel(c1c2c3[...,1])/3 + sobel(c1c2c3[...,2])/3
     additive_sob = cv2.normalize(additive_sob, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX).astype(np.uint8)
 
-    full.add(additive_sob, "blur+c1c2c3_Sobel", newrow=True)
+    tiled.add(additive_sob, "blur+c1c2c3_Sobel", newrow=True)
 
     thresh_val, thresh = cv2.threshold(cv2.bilateralFilter(additive_sob, 5, 40, 40), 100, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
     
-    full.add(thresh, "blur+c1c2c3_Sobel Otsu_thresh")
+    tiled.add(thresh, "blur+c1c2c3_Sobel Otsu_thresh")
 
     thresh_val, thresh = cv2.threshold(additive_sob, thresh_val/2, 255, cv2.THRESH_BINARY)
 
-    full.add(thresh, "blur+c1c2c3_Sobel Otsu_thresh/2")
+    tiled.add(thresh, "blur+c1c2c3_Sobel Otsu_thresh/2")
 
     # use the sobel edge detector on each channel of the c1c2c3 colour space, then merge the sobel values together in some way
     # shadows should have c1 c2 and c3 relatively unchanged. Also exclude pixels that have brightness > standard background.
