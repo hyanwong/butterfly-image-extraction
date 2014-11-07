@@ -40,7 +40,7 @@ class contour_metrics:
         return cv2.HuMoments(cv2.moments(self.smooth_contours[i]))
         
     def all_params(self, i):
-        return self.contour_points(i) + self.approx_contour_points(i) + self.contour_area(i) + self.Hu(i).flatten()
+        return self.contour_points(i) + self.approx_contour_points(i) + (self.contour_area(i),) + tuple(self.Hu(i).flatten())
 
     @staticmethod
     def header():
@@ -158,7 +158,8 @@ class contour_metrics_output:
 #                np.save(os.path.join(contour_dir, "{}-{}.npy".format(EoLobjectID, i)), smooth_contours[i])
 
                 #write params to param file
-                s = "	".join(("{}-{}".format(EoLobjectID ,i),) + contour_metrics_obj.all_params(i))
-                self.writefile.write("{}\n".format(s))
+                rowname = "{}-{}".format(EoLobjectID ,i)
+                params = contour_metrics_obj.all_params(i)
+                self.writefile.write("{}\n".format("	".join(map(str,(rowname,) + params))))
                 
         self.writefile.flush()

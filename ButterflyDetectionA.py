@@ -271,12 +271,10 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
     butterfly_metrics = contour_metrics(mask_after_grabcut)
     
     if param_dir is not None:
-        try:
-            param_output
-        except NameError:
-            params_output = contour_metrics_output(param_dir, "param.data")
+        if not hasattr(grab_butterfly, "params_output"):
+            grab_butterfly.params_output = contour_metrics_output(param_dir, "param.data")
         else:
-            params_output.write(butterfly_metrics, EoLobjectID, )
+            grab_butterfly.params_output.write(butterfly_metrics, EoLobjectID)
 
     if composite_file_dir is not None or butterfly_with_contour_file_dir is not None:
 
@@ -391,7 +389,7 @@ def remove_shadows(img):
 
 ################## main script here
 
-contour_dir = "contours" #set to None unless you want to output params to model probabbility that a contour outline is a butterfly.
+contour_dir = "contours" #set to None unless you want to output params to model probability that a contour outline is a butterfly.
 folders = ["classification", "butterflies"];
 for folder in folders:
     for the_file in os.listdir(folder):
