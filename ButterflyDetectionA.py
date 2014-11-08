@@ -35,12 +35,18 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
     h, w = small_img.shape[:2]
     flood_cutoff = {'n_areas':3, 'percent': 25.0} #cutoffs for deciding if image is pinned
 
+    #save the small original as fist pic in a tiled image
+    if composite_file_dir is not None:
+        tiled = tiled_img()
+        tiled.add(small_img, "Original")
+
+
     # First crop any exterior frames (only if inner rect > 60% of picture)
     crop_left,crop_top,crop_right,crop_bottom = frame_detection.using_rectangular_contour(small_img, 0.6)
-    img = small_img[crop_top:(h-crop_bottom), crop_left:(w-crop_right),:]
+    small_img = small_img[crop_top:(h-crop_bottom), crop_left:(w-crop_right),:]
 
     #remove non-linear noise, to cope with speckled backgrounds. A few rounds of filtering required
-    despeckled = cv2.bilateralFilter(img, 5, 100, 100)
+    despeckled = cv2.bilateralFilter(small_img, 5, 100, 100)
     despeckled = cv2.bilateralFilter(despeckled, 7, 50, 50)
     despeckled = cv2.bilateralFilter(despeckled, 9, 20, 20)
 
@@ -76,43 +82,56 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
         category = "good" if floodfilled_percent > flood_cutoff['percent'] else "bad"
         print("{} deemed {}, as largest {} flooded areas sum to {:0.2f} % (best contour IDs are {})".format(EoLobjectID, category, flood_cutoff["n_areas"], floodfilled_percent, idx_txt))  
 
-        if composite_file_dir is not None:
-            composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
-            tiled = tiled_img()
-            tiled.add(small_img, "Original")
-            tiled.add(despeckled, "Bilateral Filter")
-            tiled.add(quantized, "Meanshift filter")
-
-            mask_details = np.zeros((img.shape[0], img.shape[1], 3), np.uint8)
-            mask_details[...,2:3] = (1-mask_after_flood)*255
-            mask_details[...,1] = cv2.resize((1-conservative_background)*255, (w,h))[crop_top:(h-crop_bottom), crop_left:(w-crop_right)]
-            mask_details[...,0] = cv2.resize(mask_after_grabcut*255, (w,h))[crop_top:(h-crop_bottom), crop_left:(w-crop_right)]
-            tiled.add(255-mask_details, "masks", True)
-    
-            for i in idx:
-                contour_mask = np.zeros((img.shape[0], img.shape[1], 1), np.uint8)
-                contour = contours[i] * [w/W, h/H] - [crop_left, crop_top]
-                cv2.drawContours(contour_mask,[np.rint(contour).astype(int)], 0, color=1, thickness = cv2.cv.CV_FILLED)
-            butterfly = cv2.bitwise_and(img, img, mask = contour_mask)
-            tiled.add(butterfly, "Best")
-
-            tiled.imwrite(composite_filename)
-
         if butterfly_with_contour_file_dir is not None:
+            #save as modelnum_prob_ID
             butterfly_filenames = [os.path.join(butterfly_with_contour_file_dir,"{}_{}_{:1.5f}_{}.jpg".format(category, chr(i + ord('a')), p[i], EoLobjectID)) for i in range(len(p))]
             contour_filenames = [os.path.join(butterfly_with_contour_file_dir,"{}_{}_{:1.5f}_{}.npy".format(category, chr(i + ord('a')), p[i], EoLobjectID)) for i in range(len(p))]
 
 
             #add the portion of img covered by the best contours
-            for i in range(len(p)):
-                roi = np.asarray(cv2.boundingRect(contours[idx[i]]))
+            for model in range(len(p)):
+                roi = np.asarray(cv2.boundingRect(contours[idx[model]]))
                 expand_by_px = 5
                 crop_x = np.cumsum(roi[[0,2]]) + [-5,5] #turn into x-5, x+w+5
                 crop_y = np.cumsum(roi[[1,3]]) + [-5,5] #turn into y-5, y+h+5
                 np.clip(crop_x, 0, W, out=crop_x)
                 np.clip(crop_y, 0, H, out=crop_y)
-                cv2.imwrite(butterfly_filenames[i], large_img[slice(*crop_y), slice(*crop_x),...])
-                np.save(contour_filenames[i], contours[idx[i]]-[crop_x[0], crop_y[0]])
+                cv2.imwrite(butterfly_filenames[model], large_img[slice(*crop_y), slice(*crop_x),...])
+                np.save(contour_filenames[model], contours[idx[i]]-[crop_x[0], crop_y[0]])
+
+
+        if composite_file_dir is not None:
+            tiled.add(despeckled, "Bilateral Filter")
+            tiled.add(quantized, "Meanshift filter")
+
+            mask_details = np.zeros((small_img.shape[0], small_img.shape[1], 3), np.uint8)
+            mask_details[...,2:3] = (1-mask_after_flood)*255
+            mask_details[...,1] = cv2.resize((1-conservative_background)*255, (w,h))[crop_top:(h-crop_bottom), crop_left:(w-crop_right)]
+            mask_details[...,0] = cv2.resize(mask_after_grabcut*255, (w,h))[crop_top:(h-crop_bottom), crop_left:(w-crop_right)]
+            tiled.add(255-mask_details, "masks", True)
+    
+            for model in range(len(idx)):
+                best_idx_for_this_model = idx[model]
+                contour_mask = np.zeros((small_img.shape[0], small_img.shape[1], 1), np.uint8)
+                contour = contours[best_idx_for_this_model] * [w/W, h/H] - [crop_left, crop_top]
+                cv2.drawContours(contour_mask,[np.rint(contour).astype(int)], 0, color=1, thickness = cv2.cv.CV_FILLED)
+                butterfly = cv2.bitwise_and(small_img, small_img, mask = contour_mask)
+                tiled.add(butterfly, "Best contour (model {})".format(model))
+
+            #display the best contour fit zoomed in
+            best_model = np.argmax(p)
+            cx,cy,cw,ch = cv2.boundingRect(contours[idx[best_model]])
+            crop = large_img[cy:cy+ch,cx:cx+cw]
+            contour_mask = np.zeros((crop.shape[0], crop.shape[1], 1), np.uint8)
+            cv2.drawContours(contour_mask,[np.rint(contours[idx[best_model]]).astype(int)], 0, color=1, thickness = cv2.cv.CV_FILLED, offset=(-cx, -cy))
+            contour_mask = cv2.bitwise_and(crop, crop, mask = contour_mask)
+            scale = min(h/ch, w/cw)
+            scaled = cv2.resize(contour_mask, None, fx=scale, fy=scale, interpolation = cv2.INTER_AREA)
+            tiled.add(scaled, "Pr{{but}}={}".format(p[best_model]))
+
+            composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
+            tiled.imwrite(composite_filename)
+
 
 
 
@@ -130,6 +149,7 @@ for folder in folders:
             print(e)
 
 images = 'RawDataIDs.csv' #If this is a folder, it should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it a filename, should be a csv file of ID,URL
+#images = 'images'
 if os.path.isdir(images):
     pattern = re.compile("(.*)_580_360.jpg$");
     for img_file in os.listdir(images):

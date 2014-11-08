@@ -129,9 +129,11 @@ AIC: 173.16
             
         return values
 
-    def find_butterfly(self):
+    def find_butterfly(self, models = [0]):
         '''Find all contours in the thresholded image, and for each contour, use the Hu moments, plus an estimate of the proportion of the contour that consists of straight lines,
-        as predictors of the probability that a contour represents a butterfly shape. For details of the model, see the function prob_butterfly()'''
+        as predictors of the probability that a contour represents a butterfly shape. 
+        Returns 2 vectors, giving max probabilities & indices into the contour list, for each of models specified by the models parameter (usually just one). 
+        The list of contours is the 3rd output vector. For details of the models available, see the function prob_butterfly()'''
         prob = []
         index = []
         
@@ -140,7 +142,7 @@ AIC: 173.16
             p_large = [pr[x] if self.good_sized_area(x) else 0 for x in range(len(pr))]
             prob.append(np.max(p_large))
             index.append(np.argmax(p_large))
-            return prob, index, self.crude_contours
+        return prob, index, self.crude_contours
 
 class contour_metrics_output:
     def __init__(self, contour_dir, filename):
