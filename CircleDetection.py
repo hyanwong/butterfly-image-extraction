@@ -421,9 +421,6 @@ def find_butterfly(thresholded):
 
 
 #####BEGIN  EDITS HERE TO FIND WHERE CORNELL (GRAY) IMAGES FAIL
-def inverte(imagem):
-    imagem = (255-imagem)
-    return imagem
 
 def grab_circle(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = True, butterfly_with_contour_file_dir = "butterflies"):
     '''Process a small and a large butterfly file for circle detection'''
@@ -447,33 +444,50 @@ def grab_circle(small_img, large_img, EoLobjectID, param_dir = None, composite_f
     full.add(img, "Original")
 
     #look at individual channels
-    bimg,gimg,rimg = cv2.split(img)
-    output1 = cv2.merge((bimg,gimg,rimg))
+    im = img.astype(np.float32)+0.001 #to avoid division by 0
+    c1c2c3 = np.arctan(im/np.dstack((cv2.max(im[...,1], im[...,2]), cv2.max(im[...,0], im[...,2]), cv2.max(im[...,0], im[...,1]))))
+    bimg,gimg,rimg = cv2.split(c1c2c3)
+    bimg = cv2.normalize(bimg,0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
+    gimg = cv2.normalize(gimg,0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
+    rimg = cv2.normalize(rimg,0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
+    #bimg = bimg.astype(np.int)
+    #gimg = gimg.astype(np.int)
+    #rimg = rimg.astype(np.int)
+
+
+    output1 = cv2.merge((bimg,bimg,bimg))
+    output2 = cv2.merge((gimg,gimg,gimg))
+    output3 = cv2.merge((rimg,rimg,rimg))
     myxs = []
     myys = []
     myradii = []
+    mycols = []
 
     #process blue channel
-    threshb, img_bw = cv2.threshold(bimg, 150, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    outputb = cv2.merge((bimg,emptymask,emptymask))
-    temp_contours,hier= cv2.findContours(img_bw, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    #threshb, img_bw = cv2.threshold(bimg, 5, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    threshb, img_bw = cv2.threshold(bimg,245,255,cv2.THRESH_TRUNC)
+    despeckled = cv2.bilateralFilter(img_bw, 5, 100, 100)
+    img_bw = cv2.bilateralFilter(despeckled, 7, 50, 50)
+    #outputb = cv2.merge((bimg,bimg,bimg))
+    outputb2 = cv2.merge((img_bw,img_bw,img_bw))
+    temp_contours,hier= cv2.findContours(img_bw, cv2.RETR_TREE,cv2.CHAIN_APPROX_TC89_KCOS)
     contour_test = range(len(temp_contours))
     closed_contours = []
     mycontours = []
     for i in range(len(temp_contours)):
         temp = temp_contours[i]
         (x,y),radius = cv2.minEnclosingCircle(temp)
-        if radius > h/30:
+        if radius > h/50:
             mycontours.append(temp)
             contour_test[i] = False
             temp_poly = cv2.approxPolyDP(temp,3,closed=1)
-            area = cv2.contourArea(temp)
-            if temp_poly.size > 6:
-                myx,myy,myw,myh = cv2.boundingRect(temp);
-                if (abs(1 - (myw / myh)) <= 0.25 and abs(1 - (area / (np.pi * pow(radius, 2)))) <= 0.25):
-                    closed_contours.append(temp_contours[i])
-            elif area>0:
-                if abs( (area/np.pi) - np.power(cv2.arcLength(temp, closed=1)/(2*np.pi),2))/(area/np.pi) <= 0.25:
+            ctrarea = cv2.contourArea(temp) #USING TEMP_poly IS WORSE
+            ctrlength = cv2.arcLength(temp, closed=1) #USING TEMP_poly IS WORSE
+            ctrcompact = (4 * np.pi * ctrarea) / (pow(ctrlength, 2))
+            if ctrcompact > 0.85:
+                closed_contours.append(temp_contours[i])                 
+            elif temp_poly.size > 6 and ctrarea>0:
+                if abs( (ctrarea/np.pi) - np.power(ctrlength/(2*np.pi),2))/(ctrarea/np.pi) <= 0.25:
                     contour_test[i] = True
                     closed_contours.append(temp_contours[i])
     for i in range(len(closed_contours)):
@@ -485,44 +499,49 @@ def grab_circle(small_img, large_img, EoLobjectID, param_dir = None, composite_f
         myxs.append(x)
         myys.append(y)
         myradii.append(radius)
+        mycols.append("blue")
+        cv2.circle(output1, (int(x),int(y)),int(radius/2),(255,0,0),4)
 
-    cv2.drawContours(contourmask, mycontours, -1, (255), 3)
-    cv2.drawContours(contourmaskb, mycontours, -1, (255), 3)
-    circles1 = cv2.HoughCircles(contourmaskb, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
+    circles1 = cv2.HoughCircles(bimg, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
     if circles1 is not None:
         circles1 = np.round(circles1[0,:]).astype("int")
         #print circles_b.shape
         #Draw the circles detected
         for (x, y, r) in circles1:
             if r>h/40:
-                cv2.circle(outputb, (x,y),r,(0,0,255),4)
-    cv2.drawContours(outputb, mycontours, -1, (0,255,0), 3)
-    cv2.drawContours(outputb, closed_contours, -1, (0,0,255), 3)
-    full.add(outputb, "Blue Channel")
+                cv2.circle(output2, (int(x),int(y)),int(r/2),(255,0,0),4)
+                myxs.append(x)
+                myys.append(y)
+                myradii.append(r)
+                mycols.append("blue")
 
+        #full.add(output1, "Contour Channel 2")
 
     #process green channel
-    threshg, img_bw = cv2.threshold(gimg, 150, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    outputg = cv2.merge((emptymask,gimg,emptymask))
-    temp_contours,hier= cv2.findContours(img_bw, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    #threshb, img_bw = cv2.threshold(gimg, 15, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    threshg, img_bw = cv2.threshold(gimg,245,255,cv2.THRESH_TRUNC)
+    despeckled = cv2.bilateralFilter(img_bw, 5, 100, 100)
+    img_bw = cv2.bilateralFilter(despeckled, 7, 50, 50)
+    outputg = cv2.merge((gimg,gimg,gimg))
+    outputg2 = cv2.merge((img_bw,img_bw,img_bw))
+    temp_contours,hier= cv2.findContours(img_bw, cv2.RETR_TREE,cv2.CHAIN_APPROX_TC89_KCOS)
     contour_test = range(len(temp_contours))
     closed_contours = []
     mycontours = []
     for i in range(len(temp_contours)):
         temp = temp_contours[i]
         (x,y),radius = cv2.minEnclosingCircle(temp)
-        if radius > h/40:
+        if radius > h/50:
             mycontours.append(temp)
             contour_test[i] = False
             temp_poly = cv2.approxPolyDP(temp,3,closed=1)
-            area = cv2.contourArea(temp)
-            if temp_poly.size > 4:
-                myx,myy,myw,myh = cv2.boundingRect(temp);
-                radius = myw / 2;
-                if (abs(1 - (myw / myh)) <= 0.2 and abs(1 - (area / (np.pi * pow(radius, 2)))) <= 0.2):
-                    closed_contours.append(temp_contours[i])                
-            elif cv2.contourArea(temp)>0:
-                if abs( (area/np.pi) - np.power(cv2.arcLength(temp, closed=1)/(2*np.pi),2))/(area/np.pi) <= 0.2:
+            ctrarea = cv2.contourArea(temp) #USING TEMP_poly IS WORSE
+            ctrlength = cv2.arcLength(temp, closed=1) #USING TEMP_poly IS WORSE
+            ctrcompact = (4 * np.pi * ctrarea) / (pow(ctrlength, 2))
+            if ctrcompact > 0.85:
+                closed_contours.append(temp_contours[i])                 
+            elif temp_poly.size > 6 and ctrarea>0:
+                if abs( (ctrarea/np.pi) - np.power(ctrlength/(2*np.pi),2))/(ctrarea/np.pi) <= 0.25:
                     contour_test[i] = True
                     closed_contours.append(temp_contours[i])
     for i in range(len(closed_contours)):
@@ -534,87 +553,83 @@ def grab_circle(small_img, large_img, EoLobjectID, param_dir = None, composite_f
         myxs.append(x)
         myys.append(y)
         myradii.append(radius)
-    cv2.drawContours(contourmask, mycontours, -1, (255), 3)
-    cv2.drawContours(contourmaskg, mycontours, -1, (255), 3)
-    circles1 = cv2.HoughCircles(contourmaskg, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
+        mycols.append("green")
+        cv2.circle(output1, (int(x),int(y)),int(radius/2),(0,255,0),3)
+
+
+    circles1 = cv2.HoughCircles(gimg, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
     if circles1 is not None:
         circles1 = np.round(circles1[0,:]).astype("int")
         #print circles_b.shape
         #Draw the circles detected
         for (x, y, r) in circles1:
             if r>h/40:
-                cv2.circle(outputg, (x,y),r,(0,0,255),4)
-    cv2.drawContours(outputg, mycontours, -1, (0,255,0), 3)
-    cv2.drawContours(outputg, closed_contours, -1, (0,0,255), 3)
-    full.add(outputg, "Green Channel")
-
-
-    #process red channel
-    threshr, img_bw = cv2.threshold(rimg, 150, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    outputr = cv2.merge((emptymask,emptymask,rimg))
-    temp_contours,hier= cv2.findContours(img_bw, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    contour_test = range(len(temp_contours))
-    closed_contours = []
-    mycontours = []
-    for i in range(len(temp_contours)):
-        temp = temp_contours[i]
-        (x,y),radius = cv2.minEnclosingCircle(temp)
-        if radius > h/40:
-            mycontours.append(temp)
-            # print temp;
-            contour_test[i] = False
-            temp_poly = cv2.approxPolyDP(temp,3,closed=1)
-            area = cv2.contourArea(temp)
-            if temp_poly.size > 6:
-                myx,myy,myw,myh = cv2.boundingRect(temp);
-                radius = myw / 2;
-                if (abs(1 - (myw / myh)) <= 0.2 and abs(1 - (area / (np.pi * pow(radius, 2)))) <= 0.2):
-                    closed_contours.append(temp_contours[i])                
-            elif area>0:
-                if abs( (area/np.pi) - np.power(cv2.arcLength(temp, closed=1)/(2*np.pi),2))/(area/np.pi) <= 0.2:
-                    contour_test[i] = True
-                    closed_contours.append(temp_contours[i])
-            #contour_test[i] = abs( (cv2.contourArea(temp)/np.pi) - np.power(cv2.arcLength(temp, closed=1)/(2*np.pi),2))/(cv2.contourArea(temp)/np.pi)
-    #cnt = contours[4]
-    #cv2.drawContours(img, [cnt], 0, (0,255,0), 3)
-    #closed_contours = [i for i in temp_contours if cv2.isContourConvex(i)]
-    #closed_contours = [i for i in temp_contours if  is True]
-    for i in range(len(closed_contours)):
-        temp = closed_contours[i]
-        (x,y),radius = cv2.minEnclosingCircle(temp)
-        #cx = int(M['m10']/M['m00'])
-        #cy = int(M['m01']/M['m00'])
-        #M = cv2.moments(temp)
-        myxs.append(x)
-        myys.append(y)
-        myradii.append(radius)
-
-    cv2.drawContours(contourmask, mycontours, -1, (255), 3)
-    cv2.drawContours(contourmaskr, mycontours, -1, (255), 3)
-    circles1 = cv2.HoughCircles(contourmaskr, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
-    if circles1 is not None:
-        circles1 = np.round(circles1[0,:]).astype("int")
-        #print circles_b.shape
-        #Draw the circles detected
-        for (x, y, r) in circles1:
-            if r>h/40:
-                cv2.circle(outputr, (x,y),r,(0,0,255),4)
-    cv2.drawContours(outputr, mycontours, -1, (0,255,0), 3)
-    cv2.drawContours(outputr, closed_contours, -1, (0,0,255), 3)
-    full.add(outputr, "Red Channel")
-
-    circles1 = cv2.HoughCircles(contourmask, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
-    if circles1 is not None:
-        circles1 = np.round(circles1[0,:]).astype("int")
-        #print circles_b.shape
-        #Draw the circles detected
-        for (x, y, r) in circles1:
-            if r>h/40:
-                cv2.circle(output1, (x,y),r,(0,0,255),4)
-        full.add(output1, "Contour Channel")
+                cv2.circle(output2, (int(x),int(y)),int(r/2),(0,255,0),3)
+                myxs.append(x)
+                myys.append(y)
+                myradii.append(r)
+                mycols.append("green")
+        #full.add(output1, "Contour Channel 2")
     
 
 
+    #process red channel
+    threshr, img_bw = cv2.threshold(rimg,245,255,cv2.THRESH_TRUNC)
+    despeckled = cv2.bilateralFilter(img_bw, 5, 100, 100)
+    img_bw = cv2.bilateralFilter(despeckled, 7, 50, 50)
+    outputr = cv2.merge((rimg,rimg,rimg))
+    outputr2 = cv2.merge((img_bw,img_bw,img_bw))
+    temp_contours,hier= cv2.findContours(img_bw, cv2.RETR_TREE,cv2.CHAIN_APPROX_TC89_KCOS)
+    contour_test = range(len(temp_contours))
+    closed_contours = []
+    mycontours = []
+    for i in range(len(temp_contours)):
+        temp = temp_contours[i]
+        (x,y),radius = cv2.minEnclosingCircle(temp)
+        if radius > h/50:
+            mycontours.append(temp)
+            contour_test[i] = False
+            temp_poly = cv2.approxPolyDP(temp,3,closed=1)
+            ctrarea = cv2.contourArea(temp) #USING TEMP_poly IS WORSE
+            ctrlength = cv2.arcLength(temp, closed=1) #USING TEMP_poly IS WORSE
+            ctrcompact = (4 * np.pi * ctrarea) / (pow(ctrlength, 2))
+            if ctrcompact > 0.85:
+                closed_contours.append(temp_contours[i])                 
+            elif temp_poly.size > 6 and ctrarea>0:
+                if abs( (ctrarea/np.pi) - np.power(ctrlength/(2*np.pi),2))/(ctrarea/np.pi) <= 0.25:
+                    contour_test[i] = True
+                    closed_contours.append(temp_contours[i])
+    for i in range(len(closed_contours)):
+        temp = closed_contours[i]
+        (x,y),radius = cv2.minEnclosingCircle(temp)
+        #cx = int(M['m10']/M['m00'])
+        #cy = int(M['m01']/M['m00'])
+        #M = cv2.moments(temp)
+        myxs.append(x)
+        myys.append(y)
+        myradii.append(radius)
+        mycols.append("red")
+        cv2.circle(output1, (int(x),int(y)),int(radius/2),(0,0,255),2)
+
+    circles1 = cv2.HoughCircles(rimg, cv2.cv.CV_HOUGH_GRADIENT, 12,np.int(h/10),2,50,50,np.int(h/300),np.int(h/20));
+    if circles1 is not None:
+        circles1 = np.round(circles1[0,:]).astype("int")
+        #print circles_b.shape
+        #Draw the circles detected
+        for (x, y, r) in circles1:
+            if r>h/40:
+                cv2.circle(output2, (int(x),int(y)),int(r/2),(0,0,255),2)
+                myxs.append(x)
+                myys.append(y)
+                myradii.append(r)
+                mycols.append("red")
+    
+    full.add(output1, "From Contours")
+    full.add(output2, "From HoughCircles")
+    full.add(output3, "Red grayscale")
+    full.add(outputb2, "Blue Binary", newrow=True)
+    full.add(outputg2, "Green Binary")
+    full.add(outputr2, "Red Binary")
 
 
     cv2.imshow("output",full.main_image)
