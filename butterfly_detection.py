@@ -27,13 +27,23 @@ def refine_background_via_grabcut(img, is_background, dilate=False):
     return np.where((grabcut_mask ==2)|(grabcut_mask ==0),0,1).astype(np.uint8)
     
 
-def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = None, butterfly_with_contour_file_dir = None):
+def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = None, butterfly_with_contour_file_dir = None):
     '''Process a small and a large butterfly file, under a certain objectID. If a param_dir is give, save potential butterfly outlines and relevant parameters there (useful 
     for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If composite_file_dir is given, save a composite, tiled image 
-    of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir'''
+    of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir
+    Returns a list of parameters for saving, plus a binary mask image.'''
+
+    function_param_names = {k:0 for k,v in locals().viewitems()}
+
+    #define parameters as ints or strings here
+    flood_cutoff_n_areas = 3
+    flood_cutoff_percent = 25.0 #cutoffs for deciding if image is pinned
+    #define some others in here.
+
+    params = {k:v for k,v in locals().viewitems() if (k != 'function_param_names' and k not in function_param_names)}
+
     H, W = large_img.shape[:2]
     h, w = small_img.shape[:2]
-    flood_cutoff = {'n_areas':3, 'percent': 25.0} #cutoffs for deciding if image is pinned
 
     #save the small original as fist pic in a tiled image
     if composite_file_dir is not None:
@@ -54,7 +64,7 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
     quantized = cv2.pyrMeanShiftFiltering(despeckled, 20, 20, 3)
 
     #find the largest areas of +- coherent colour, using floodfilling from multiple points
-    dummy_mask, mask_after_flood, flood_param = background_detection.using_floodfill(despeckled, quantized, flood_cutoff["n_areas"], flood_cutoff["n_areas"], [1.4,0.9], flood_type=0, reflood=False)
+    dummy_mask, mask_after_flood, flood_param = background_detection.using_floodfill(despeckled, quantized, flood_cutoff_n_areas, flood_cutoff_n_areas, [1.4,0.9], flood_type=0, reflood=False)
     
     #make the estimated background a bit smaller than the coherent colour areas, in case we accidentally included some real butterfly
     conservative_background = cv2.erode(mask_after_flood,np.ones((5,5),np.uint8))[..., None] 
@@ -69,18 +79,20 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
     butterfly_metrics = contour_metrics(mask_after_grabcut)
     
     if param_dir is not None:
-        if not hasattr(grab_butterfly, "params_output"):
-            grab_butterfly.params_output = contour_metrics_output(param_dir, "param.data")
-        grab_butterfly.params_output.write(butterfly_metrics, EoLobjectID, output_contour_pics=True)
+        if not hasattr(best_outline, "params_output"):
+            best_outline.params_output = contour_metrics_output(param_dir, "param.data")
+        best_outline.params_output.write(butterfly_metrics, EoLobjectID, output_contour_pics=True)
+
+    p, idx, contours = butterfly_metrics.find_butterfly()
+    best_model = np.argmax(p)
 
     if composite_file_dir is not None or butterfly_with_contour_file_dir is not None:
 
-        p, idx, contours = butterfly_metrics.find_butterfly()
 
         idx_txt = " ".join(np.char.mod("%i", idx).flatten())
         floodfilled_percent = cv2.countNonZero(mask_after_flood) / mask_after_flood.shape[0] / mask_after_flood.shape[1] * 100
-        category = "good" if floodfilled_percent > flood_cutoff['percent'] else "bad"
-        print("{} deemed {}, as largest {} flooded areas sum to {:0.2f} % (best contour IDs are {})".format(EoLobjectID, category, flood_cutoff["n_areas"], floodfilled_percent, idx_txt))  
+        category = "good" if floodfilled_percent > flood_cutoff_percent else "bad"
+        print("{} deemed {}, as largest {} flooded areas sum to {:0.2f} % (best contour IDs are {})".format(EoLobjectID, category, flood_cutoff_n_areas, floodfilled_percent, idx_txt))  
 
         if butterfly_with_contour_file_dir is not None:
             #save as modelnum_prob_ID
@@ -119,7 +131,6 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
                 tiled.add(butterfly, "Best contour (model {})".format(model))
 
             #display the best contour fit zoomed in
-            best_model = np.argmax(p)
             cx,cy,cw,ch = cv2.boundingRect(contours[idx[best_model]])
             crop = large_img[cy:cy+ch,cx:cx+cw]
             contour_mask = np.zeros((crop.shape[0], crop.shape[1], 1), np.uint8)
@@ -131,8 +142,9 @@ def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composit
 
             composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
             tiled.imwrite(composite_filename)
-
-
+    best_mask = np.zeros((H, W), np.uint8)
+    cv2.drawContours(best_mask, [contours[idx[best_model]]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
+    return(params, best_mask)
 
 
 ################## main script here
@@ -161,7 +173,7 @@ if os.path.isdir(images):
             large_files = glob.glob(match_glob)
             if len(large_files) ==1:
                 print("opening {} and {} (ID={})".format(small_file, large_files[0], tmpID))
-                grab_butterfly(cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR), cv2.imread(large_files[0], cv2.CV_LOAD_IMAGE_COLOR), tmpID, contour_dir, folders[0], folders[1])
+                best_outline(cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR), cv2.imread(large_files[0], cv2.CV_LOAD_IMAGE_COLOR), tmpID, contour_dir, folders[0], folders[1])
             else:
                 print("problem with opening {}: found {} files when matching {}".format(small_file, len(large_files), match_glob))                
 else:
@@ -191,5 +203,5 @@ else:
         print("Data_object {}: opening {}".format(row['ID'], row['fullsizeURL']))
         req2 = urllib.urlopen(row['fullsizeURL'])
         arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
-        grab_butterfly(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1])
+        best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1])
 

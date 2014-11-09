@@ -90,7 +90,7 @@ def plot_circular_contour(c1img, accumulate_binary, displayname=None):
 
 
 def best_outline(image_580_360, display=False):
-    '''returns a binary mask image'''
+    '''Returns a list of parameters for saving, plus a binary mask image'''
     h, w = image_580_360.shape[0:2]
     img = image_580_360 #ADDED
     im = img.astype(np.float32)+0.001 #to avoid division by 0
