@@ -72,7 +72,8 @@ if len(stats):
     stats = np.asarray(stats)
     masked_stats = np.ma.masked_array(stats,np.isnan(stats))
     #do logistic regression here
-    response = np.isnan(stats[:,0])
+    response = np.where(np.isnan(stats[:,0]), 0, 1)
+    print(reponse)
     pr_but = stats[:,1]
     floodfill_percent = stats[:2]
     print("Mask disparity: {}".format(np.mean(masked_stats[:,0])))
