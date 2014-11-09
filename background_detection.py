@@ -8,7 +8,7 @@ import basic_imgproc
 #def using_meanshift(img, ):
     # 
 
-def using_floodfill(img, quantized_img, n_flood_areas_for_cutoff, n_flood_areas_max, flood_parameters = [8,5], flood_type = cv2.FLOODFILL_FIXED_RANGE, reflood=True):
+def using_floodfill(img, quantized_img, n_flood_areas_for_cutoff, n_flood_areas_max, flood_parameters = [8,5], flood_type = cv2.FLOODFILL_FIXED_RANGE, reflood=True, verbose=False):
     '''Use flood filling to detect if there is a background of a constant shade. First try flooding from num_points around the (massively despeckled) image, and pick the largest flooded area,
     assuming this is the background colour (use fixed range flooding to make sure we do not e.g. grade into unfocussed brown branches against a green background).
     Fill that area with the average colour within it, and reflood, to grab any extraneous pixels. Repeat, adding a new flood area to the background only if its 
@@ -75,7 +75,8 @@ def using_floodfill(img, quantized_img, n_flood_areas_for_cutoff, n_flood_areas_
         full_mask = temp_mask
 
         if j==0:
-            print("regions added to mask: 0 ({:1.2f}%)".format(bestflood*100), end="");
+            if verbose:
+                print("regions added to mask: 0 ({:1.2f}%)".format(bestflood*100), end="");
             good_mask = full_mask.copy()
 
         else: #not on first iteration: should we add this new area to the best mask?
@@ -96,10 +97,11 @@ def using_floodfill(img, quantized_img, n_flood_areas_for_cutoff, n_flood_areas_
             if (abs(np.log(basic_imgproc.brightness_distortion(new_mean, old_mean, old_stdev)+1e-10)) <  max_flood_area_brightness_diff):
                 if (basic_imgproc.chromacity_distortion(new_mean, old_mean, old_stdev) <  max_flood_area_chromocity_diff) :
                     good_mask[full_mask==1] = 1
-                    if j<n_flood_areas_for_cutoff:
-                        print(" {} ({:1.2f}%)".format(j, bestflood*100), end='');
-                    else:
-                        print(" [{} ({:1.2f})]".format(j, bestflood*100), end='');
+                    if verbose:
+                        if j<n_flood_areas_for_cutoff:
+                            print(" {} ({:1.2f}%)".format(j, bestflood*100), end='');
+                        else:
+                            print(" [{} ({:1.2f})]".format(j, bestflood*100), end='');
 
 
                
@@ -107,6 +109,7 @@ def using_floodfill(img, quantized_img, n_flood_areas_for_cutoff, n_flood_areas_
             cutoff_mask = good_mask.copy()[1:-1,1:-1]
 
     good_mask = good_mask[1:-1,1:-1] #trim off the extra pixels at the edge of the mask to make it the same as the image
-    print(". Total area flooded = {:0.2f} %.".format(cv2.countNonZero(good_mask) / h / w *100))
+    if verbose:
+        print(". Total area flooded = {:0.2f} %.".format(cv2.countNonZero(good_mask) / h / w *100))
 
     return good_mask, cutoff_mask, best_f[0]

@@ -43,7 +43,7 @@ for filenames in testcases:
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
     large_img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
     small_img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-    measure, params, mask = best_outline(small_img, large_img, dID)
+    measure, params, mask = best_outline(small_img, large_img, dID, verbose=False)
 
     filename = os.path.splitext(small_file)[0]
     if save_contours:
@@ -60,7 +60,8 @@ for filenames in testcases:
             print("Multiple matching saved outlines for {}".format(fileglob))
         elif len(saved_files) < 1:
             #this is not a pinned butterfly - we should assess how well we have detected this
-            print(measure[0], measure[1])
+            print("{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2], measure[0], measure[1]))
         else:
             target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
-            print("{}\t{}".format(small_file,np.count_nonzero(np.logical_xor(target, mask))))
+            fit = np.count_nonzero(np.logical_xor(target, mask))/np.min(large_img.shape[0:2])
+            print("{}\t{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2],measure[0], measure[1], fit))

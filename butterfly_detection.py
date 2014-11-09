@@ -27,7 +27,7 @@ def refine_background_via_grabcut(img, is_background, dilate=False):
     return np.where((grabcut_mask ==2)|(grabcut_mask ==0),0,1).astype(np.uint8)
     
 
-def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = None, butterfly_with_contour_file_dir = None):
+def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = None, butterfly_with_contour_file_dir = None, verbose = False):
     '''Process a small and a large butterfly file, under a certain objectID. If a param_dir is give, save potential butterfly outlines and relevant parameters there (useful 
     for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If composite_file_dir is given, save a composite, tiled image 
     of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir
@@ -64,7 +64,7 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
     quantized = cv2.pyrMeanShiftFiltering(despeckled, 20, 20, 3)
 
     #find the largest areas of +- coherent colour, using floodfilling from multiple points
-    dummy_mask, mask_after_flood, flood_param = background_detection.using_floodfill(despeckled, quantized, flood_cutoff_n_areas, flood_cutoff_n_areas, [1.4,0.9], flood_type=0, reflood=False)
+    dummy_mask, mask_after_flood, flood_param = background_detection.using_floodfill(despeckled, quantized, flood_cutoff_n_areas, flood_cutoff_n_areas, [1.4,0.9], flood_type=0, reflood=False, verbose=verbose)
     
     #make the estimated background a bit smaller than the coherent colour areas, in case we accidentally included some real butterfly
     conservative_background = cv2.erode(mask_after_flood,np.ones((5,5),np.uint8))[..., None] 
@@ -204,5 +204,5 @@ if __name__ == "__main__":
             print("Data_object {}: opening {}".format(row['ID'], row['fullsizeURL']))
             req2 = urllib.urlopen(row['fullsizeURL'])
             arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
-            best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1])
+            best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1], verbose=True)
 

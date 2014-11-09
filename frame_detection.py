@@ -3,7 +3,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 
-def using_rectangular_contour(img, min_prop_picture_in_frame):
+def using_rectangular_contour(img, min_prop_picture_in_frame, verbose=False):
     '''Detect if picture is in a frame, by detecting rectangles and crop if any contain >75% of the image.
     This code does not seem to work consistently (e.g. on eol.org/data_objects/17762955): it probably needs tweaking'''
     h, w = img.shape[:2]
@@ -51,7 +51,7 @@ def using_rectangular_contour(img, min_prop_picture_in_frame):
     else:
         return 0,0,0,0
 
-def using_floodfill(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, horiz_vert_max_gradient = 1/40):
+def using_floodfill(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, horiz_vert_max_gradient = 1/40, verbose=False):
     '''Detect if picture is in a frame, by flood filling from the top left corner, then looking for long horizontal or vertical lines in the resulting mask.
     Horizontal lines are defined as -horiz_vert_max_gradient < GRAD < horiz_vert_max_gradient. Verical lines -horiz_vert_max_gradient < 1/GRAD < horiz_vert_max_gradient
     We only choose lines within a certain fraction of the edge of the picture (10%, by default). If there are left, right, top AND bottom lines, assume it is a frame.
@@ -76,10 +76,12 @@ def using_floodfill(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, ho
                 x_pos = np.mean(p[[0,2]])
                 if   (best[0] is None or (x_pos > best[0])) and (x_pos < 0.1*w): #in leftmost 10% of image 
                     best[0] = np.min(p[[0,2]])
-                    print("got x min")
+                    if verbose:
+                        print("got x min")
                 elif (best[2] is None or (x_pos < best[2])) and (x_pos > 0.9*w): #in rightmost 10% of image 
                     best[2] = np.max(p[[0,2]])
-                    print("got x max")
+                    if verbose:
+                        print("got x max")
     horiz_lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi/2, threshold =4, minLineLength=w* line_length, maxLineGap= maxLineGap)
     if horiz_lines is not None:
         for l in range(horiz_lines.shape[1]):
@@ -88,14 +90,17 @@ def using_floodfill(img, edge_fraction=0.1, line_length = 0.8, maxLineGap=10, ho
                 y_pos = np.mean(p[[1,3]])
                 if   (best[1] is None or (y_pos > best[1])) and (y_pos < 0.1*h): #in topmost 10% of image 
                     best[1] = np.min(p[[1,3]])
-                    print("got y min")
+                    if verbose:
+                        print("got y min")
                 elif (best[3] is None or (y_pos < best[3])) and (y_pos > 0.9*h): #in bottommost 10% of image 
                     best[3] = np.max(p[[1,3]])
-                    print("got y max")
+                    if verbose:
+                        print("got y max")
 
 
     if all(i is not None for i in best):
-        print("Cropped")
+        if verbose:
+            print("Cropped")
         return best[0], best[1], w-best[2], h-best[3]
     else:
         return 0,0,0,0
