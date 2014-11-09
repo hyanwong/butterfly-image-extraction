@@ -50,7 +50,7 @@ def savecontours(c1img, name):
 
 def plot_circular_contour(c1img, accumulate_binary, display=False):
     if display:
-        display_image=np.zeros((c1img.shape[0], c1img.shape[1]*3,1), np.uint8)
+        display_image=np.zeros((c1img.shape[0], c1img.shape[1]*3), np.uint8)
         display_image[:,0:c1img.shape[1]] = c1img
 
     accum_params = []
@@ -77,8 +77,8 @@ def plot_circular_contour(c1img, accumulate_binary, display=False):
 
     if display:
         display_image[:,c1img.shape[1]:(c1img.shape[1]*2)] = c1img
-        cv2.imshow("c1c1c1, thresh, mask" display_image)
-        cv2.waitkey()
+        cv2.imshow("c1c1c1, thresh, mask", display_image) #ADDED COMMA
+        cv2.waitKey()
 
 
 ##main - accesses images in folder
@@ -86,13 +86,14 @@ def plot_circular_contour(c1img, accumulate_binary, display=False):
 def best_circles(image_580_360, display=False):
     '''returns a binary mask image'''
     h, w = image_580_360.shape[0:2]
+    img = image_580_360 #ADDED
     im = img.astype(np.float32)+0.001 #to avoid division by 0
     c1c2c3 = np.arctan(im/np.dstack((cv2.max(im[...,1], im[...,2]), cv2.max(im[...,0], im[...,2]), cv2.max(im[...,0], im[...,1]))))
     bimg,gimg,rimg = cv2.split(c1c2c3)
     rimg =(cv2.normalize(rimg, rimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1))
     gimg = (cv2.normalize(gimg, gimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1))
     bimg = (cv2.normalize(bimg, bimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1))
-    accumulation_mask = np.zeros((img.shape[0], img.shape[1],1), np.uint8)
+    accumulation_mask = np.zeros((img.shape[0], img.shape[1]), np.uint8)
     plot_circular_contour(rimg, accumulation_mask, display)
     plot_circular_contour(gimg, accumulation_mask, display)
     plot_circular_contour(bimg, accumulation_mask, display)
@@ -100,16 +101,16 @@ def best_circles(image_580_360, display=False):
     #find circles in the accumulated mask
     contours = cv2.findContours(accumulation_mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
     if display:
-        display_image=accumulation_mask.copy()
+        display_image=cv2.merge((accumulation_mask.copy(),accumulation_mask.copy(),accumulation_mask.copy())) ## Create a 3-channel display image
 
     for c in contours:
         (cx,cy),cr = cv2.minEnclosingCircle(c)
-        print "{} {} {}".format(cx,cy,cr)
+        print("{} {} {}".format(cx,cy,cr)) #ADDED PARENTHESES
         if display:
-            cv2.circle(display_image, (int(cx),int(cy)),int(cr*.75), color=(0,0,255), thickness=cv2.cv.CV_FILLED)
+            cv2.circle(display_image, (int(cx),int(cy)),int(cr*.75), color=(0,0,255), thickness=cv2.cv.CV_FILLED) ## Add red circles
 
     if display:
-        cv2.imshow("found circles" display_image)
-        cv2.waitkey()
+        cv2.imshow("found circles", display_image) #ADDED COMMA
+        cv2.waitKey()
     
     return(accumulation_mask)
