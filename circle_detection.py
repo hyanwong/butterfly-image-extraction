@@ -59,7 +59,7 @@ def plot_circular_contour(c1img, accumulate_binary, display=False):
     Qcut = 0.8 #adjusted down from 0.9
     cont_type = 'approxPolyDP'
 
-    params = {k:v for k,v in locals().viewitems() if (k not in function_param_names)}
+    params = {k:v for k,v in locals().viewitems() if (k != 'function_param_names' and k not in function_param_names)}
    
     if display:
         display_image=np.zeros((c1img.shape[0], c1img.shape[1]*3), np.uint8)
@@ -103,20 +103,5 @@ def best_circles(image_580_360, display=False):
     plot_circular_contour(rimg, accumulation_mask, display)
     plot_circular_contour(gimg, accumulation_mask, display)
     params = plot_circular_contour(bimg, accumulation_mask, display)
-    
-    #find circles in the accumulated mask
-    contours = cv2.findContours(accumulation_mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
-    if display:
-        display_image=cv2.merge((accumulation_mask.copy(),accumulation_mask.copy(),accumulation_mask.copy())) ## Create a 3-channel display image
-
-    for c in contours:
-        (cx,cy),cr = cv2.minEnclosingCircle(c)
-        print("{} {} {}".format(cx,cy,cr)) #ADDED PARENTHESES
-        if display:
-            cv2.circle(display_image, (int(cx),int(cy)),int(cr*.75), color=(0,0,255), thickness=cv2.cv.CV_FILLED) ## Add red circles
-
-    if display:
-        cv2.imshow("found circles", display_image) #ADDED COMMA
-        cv2.waitKey()
-    
+        
     return(params, accumulation_mask)

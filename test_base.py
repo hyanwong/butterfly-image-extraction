@@ -26,33 +26,35 @@ def get_images(csv_file, image_dir):
             names = []
             for suffix in ("_orig.jpg", "_580_360.jpg"):
                 url = re.sub("_\w+\.jpg$", suffix, row[1])
-                filename = dID+suffix
+                filename = os.path.join(image_dir,dID+suffix)
                 names.append(filename)
                 if not(os.path.isfile(filename)):
-                    print("getting {} from {}".format(os.path.join(image_dir, filename), url))
-                    urllib.urlretrieve(row[1], os.path.join(image_dir, filename), url)
-            filenames.append[names]
+                    print("getting {} from {}".format(filename, url))
+                    urllib.urlretrieve(url, filename)
+            filenames.append(names)
     return filenames
     
-save_contours=True
+save_contours=False
 
 testcases = get_images(csv_file, image_dir)
 for filenames in testcases:
     small_file = filenames[1]
-    print("opening {} (ID={})".format(small_file,  tmpID))
+    dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-    mask, params = best_circles(img)
+    params, mask = best_circles(img)
     filename = os.path.splitext(small_file)[0]
     if save_contours:
-        param_string = ''.join("%s=%r" % (key,val) for (key,val) in params.iteritems())
-        cv2.imwrite(mask, os.path.join(os.path.dirname(filename),param_string, "_"+os.path.basename(filename)+".png"))
+        param_string = '+'.join("%s=%s" % (key,val) for (key,val) in params.iteritems())
+        maskfile = os.path.basename(filename)+"_"+param_string+".png"
+        print("Writing best case file {}".format(maskfile))
+        cv2.imwrite(os.path.join(os.path.dirname(filename),maskfile), mask)
     else:
         #compare the current run with the saved files
         #read saved mask, of format blahblahblah_dID_***.png
-        fileglob = os.path.join(os.path.dirname(filename), "*_"+os.path.basename(filename)+".png")
+        fileglob = os.path.join(os.path.dirname(filename), os.path.basename(filename)+"_*"+".png")
         saved_files = glob.glob(fileglob)
-        if len(saved_files != 1):
+        if len(saved_files) != 1:
             print("Couldn't find a single saved file matching {}".format(fileglob))
         else:
             target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
-            print(np.count_nonzero(np.logical_xor(target, mask)))
+            print("{}\t{}".format(small_file,np.count_nonzero(np.logical_xor(target, mask))))
