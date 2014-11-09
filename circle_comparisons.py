@@ -47,7 +47,7 @@ for filenames in get_images(csv_file, image_dir):
             circles +=1;
 
     filename = os.path.splitext(small_file)[0]
-    if sys.argv[1] == "save":
+    if len(sys.argv) > 1 and sys.argv[1] == "save":
         param_string = '+'.join("%s=%s" % (key,val) for (key,val) in params.iteritems())
         maskfile = os.path.basename(filename)+"_"+param_string+".png"
         print("Writing best case file {}".format(maskfile))

@@ -35,7 +35,7 @@ def get_images(csv_file, image_dir):
             filenames.append(names)
     return filenames
     
-
+stats = []
 for filenames in get_images(csv_file, image_dir):
     large_file = filenames[0]
     small_file = filenames[1]
@@ -45,7 +45,7 @@ for filenames in get_images(csv_file, image_dir):
     measure, params, mask = best_outline(small_img, large_img, dID, verbose=False)
 
     filename = os.path.splitext(small_file)[0]
-    if sys.argv[1] == "save":
+    if len(sys.argv) > 1 and sys.argv[1] == "save":
         param_string = '+'.join("%s=%s" % (key,val) for (key,val) in params.iteritems())
         maskfile = os.path.basename(filename)+"_"+param_string+".png"
         print("Writing best case file {}".format(maskfile))
@@ -57,10 +57,23 @@ for filenames in get_images(csv_file, image_dir):
         saved_files = glob.glob(fileglob)
         if len(saved_files) > 1:
             print("Multiple matching saved outlines for {}".format(fileglob))
-        elif len(saved_files) < 1:
-            #this is not a pinned butterfly - we should assess how well we have detected this
-            print("{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2], measure[0], measure[1]))
         else:
-            target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
-            fit = np.count_nonzero(np.logical_xor(target, mask))/np.min(large_img.shape[0:2])
-            print("{}\t{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2],measure[0], measure[1], fit))
+            if len(saved_files) < 1:
+                #this is not a pinned butterfly - we should assess how well we have detected this
+                fit = nan
+                print("{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2], measure[0], measure[1]))
+            else:
+                target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
+                fit = np.count_nonzero(np.logical_xor(target, mask))/np.min(large_img.shape[0:2])
+                print("{}\t{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2],measure[0], measure[1], fit))
+            stats.append([fit, measure[0], measure[1]])
+           
+if len(stats):
+    stats = np.asarray(stats)
+    masked_stats = np.ma.masked_array(stats,np.isnan(stats))
+    #do logistic regression here
+    response = np.isnan(stats[:,0])
+    pr_but = stats[:,1]
+    floodfill_percent = stats[:2]
+    print("Mask disparity: {}".format(np.mean(masked_stats[:,0])))
+
