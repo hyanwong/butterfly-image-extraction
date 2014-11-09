@@ -42,6 +42,14 @@ for filenames in testcases:
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
     params, mask = best_circles(img)
+    contours = cv2.findContours(mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
+    circles=0
+    for c in contours:
+        if cv2.contourArea(c) < 100:
+            print("small circle in {} not counted".format(small_file))
+        else:
+            circles +=1;
+
     filename = os.path.splitext(small_file)[0]
     if save_contours:
         param_string = '+'.join("%s=%s" % (key,val) for (key,val) in params.iteritems())
@@ -57,4 +65,11 @@ for filenames in testcases:
             print("Couldn't find a single saved file matching {}".format(fileglob))
         else:
             target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
-            print("{}\t{}".format(small_file,np.count_nonzero(np.logical_xor(target, mask))))
+            contours = cv2.findContours(target.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
+            target_circles=0
+            for c in contours:
+                if cv2.contourArea(c) < 100:
+                    print("small circle in {} not counted".format(fileglob))
+                else:
+                    target_circles += 1;
+            print("{}\t{}\t{}".format(small_file,np.count_nonzero(np.logical_xor(target, mask)), circles-target_circles))

@@ -54,7 +54,8 @@ def plot_circular_contour(c1img, accumulate_binary, displayname=None):
     #define parameters as ints or strings here
     window_width = int(round((min(c1img.shape[0],c1img.shape[1])/16 ))*2+1)  #parameter = 1/8 of minimum dimension of image - must be an odd number
     threshfunc = 'adaptiveThreshold'
-    thresh_dist = 'ADAPTIVE_THRESH_MEAN_C' #cv2.ADAPTIVE_THRESH_MEAN_C worked better than cv2.ADAPTIVE_THRESH_GAUSSIAN_C with these parameters
+    thresh_dist = 'ADAPTIVE_THRESH_GAUSSIAN_C' #cv2.ADAPTIVE_THRESH_MEAN_C worked better than cv2.ADAPTIVE_THRESH_GAUSSIAN_C with these parameters
+    C = 15
     min_circumf = 45 #adjusted up from 25
     Qcut = 0.8 #adjusted down from 0.9
     cont_type = 'approxPolyDP'
@@ -65,7 +66,7 @@ def plot_circular_contour(c1img, accumulate_binary, displayname=None):
         display_image=np.zeros((c1img.shape[0], c1img.shape[1]*3), np.uint8)
         display_image[:,0:c1img.shape[1]] = c1img
     
-    c1img = getattr(cv2, threshfunc)(c1img, 255, getattr(cv2, thresh_dist), cv2.THRESH_BINARY, window_width, 20)
+    c1img = getattr(cv2, threshfunc)(c1img, 255, getattr(cv2, thresh_dist), cv2.THRESH_BINARY, window_width, C)
     
     smooth_contours = cv2.findContours(c1img.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
     for i in range(len(smooth_contours)):
@@ -99,8 +100,8 @@ def best_circles(image_580_360, display=False):
     gimg = cv2.normalize(gimg, gimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
     bimg = cv2.normalize(bimg, bimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
     accumulation_mask = np.zeros((img.shape[0], img.shape[1]), np.uint8)
-    plot_circular_contour(rimg, accumulation_mask, "red" if display else None)
     plot_circular_contour(gimg, accumulation_mask,  "green" if display else None)
-    params = plot_circular_contour(bimg, accumulation_mask,  "blue" if display else None)
+    plot_circular_contour(bimg, accumulation_mask,  "blue" if display else None)
+    params = plot_circular_contour(rimg, accumulation_mask, "red" if display else None)
         
     return(params, accumulation_mask)
