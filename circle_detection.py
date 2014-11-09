@@ -48,7 +48,7 @@ def savecontours(c1img, name):
         i = i+1
 
 
-def plot_circular_contour(c1img, accumulate_binary, display=False):
+def plot_circular_contour(c1img, accumulate_binary, displayname=None):
     function_param_names = {k:0 for k,v in locals().viewitems()}
 
     #define parameters as ints or strings here
@@ -61,7 +61,7 @@ def plot_circular_contour(c1img, accumulate_binary, display=False):
 
     params = {k:v for k,v in locals().viewitems() if (k != 'function_param_names' and k not in function_param_names)}
    
-    if display:
+    if displayname is not None:
         display_image=np.zeros((c1img.shape[0], c1img.shape[1]*3), np.uint8)
         display_image[:,0:c1img.shape[1]] = c1img
     
@@ -79,13 +79,12 @@ def plot_circular_contour(c1img, accumulate_binary, display=False):
             Q = (4*np.pi*area[cont_type])/(length[cont_type]*length[cont_type])
             if Q > Qcut: 
                 cv2.drawContours(accumulate_binary, [cont[cont_type]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
-                if display:
+                if displayname is not None:
                     cv2.drawContours(display_image[:,(c1img.shape[1]*2):(c1img.shape[1]*3)], [cont[cont_type]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
 
-    if display:
+    if displayname is not None:
         display_image[:,c1img.shape[1]:(c1img.shape[1]*2)] = c1img
-        cv2.imshow("c1c1c1, thresh, mask", display_image) #ADDED COMMA
-        cv2.waitKey()
+        cv2.imshow(displayname + " c1c1c1, thresh, mask", display_image) #ADDED COMMA
     return(params)
 
 
@@ -100,8 +99,8 @@ def best_circles(image_580_360, display=False):
     gimg = cv2.normalize(gimg, gimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
     bimg = cv2.normalize(bimg, bimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
     accumulation_mask = np.zeros((img.shape[0], img.shape[1]), np.uint8)
-    plot_circular_contour(rimg, accumulation_mask, display)
-    plot_circular_contour(gimg, accumulation_mask, display)
-    params = plot_circular_contour(bimg, accumulation_mask, display)
+    plot_circular_contour(rimg, accumulation_mask, "red" if display else None)
+    plot_circular_contour(gimg, accumulation_mask,  "green" if display else None)
+    params = plot_circular_contour(bimg, accumulation_mask,  "blue" if display else None)
         
     return(params, accumulation_mask)
