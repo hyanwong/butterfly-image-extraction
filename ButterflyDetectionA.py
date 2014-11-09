@@ -27,9 +27,9 @@ def refine_background_via_grabcut(img, is_background, dilate=False):
     return np.where((grabcut_mask ==2)|(grabcut_mask ==0),0,1).astype(np.uint8)
     
 
-def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = True, butterfly_with_contour_file_dir = "butterflies"):
+def grab_butterfly(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = None, butterfly_with_contour_file_dir = None):
     '''Process a small and a large butterfly file, under a certain objectID. If a param_dir is give, save potential butterfly outlines and relevant parameters there (useful 
-    for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If save_composite_file is given, save a composite, tiled image 
+    for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If composite_file_dir is given, save a composite, tiled image 
     of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir'''
     H, W = large_img.shape[:2]
     h, w = small_img.shape[:2]

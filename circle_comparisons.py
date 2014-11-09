@@ -8,7 +8,7 @@ import csv
 import re
 import glob
 
-from circle_detection import best_circles
+from circle_detection import best_outline
 
 
 #csv file in the same dir as this script, as dataID, URL
@@ -41,7 +41,7 @@ for filenames in testcases:
     small_file = filenames[1]
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-    params, mask = best_circles(img)
+    params, mask = best_outline(img)
     contours = cv2.findContours(mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
     circles=0
     for c in contours:
