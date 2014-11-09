@@ -6,6 +6,8 @@ import urllib
 import os
 import csv
 import re
+import glob
+
 from circle_detection import best_circles
 
 
@@ -32,18 +34,25 @@ def get_images(csv_file, image_dir):
             filenames.append[names]
     return filenames
     
-def save_outlines():
-    pass    
-    
-if 
+save_contours=True
+
 testcases = get_images(csv_file, image_dir)
 for filenames in testcases:
     small_file = filenames[1]
     print("opening {} (ID={})".format(small_file,  tmpID))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
+    mask, params = best_circles(img)
+    filename = os.path.splitext(small_file)[0]
     if save_contours:
-        mask, params = best_circles(img)
         param_string = ''.join("%s=%r" % (key,val) for (key,val) in params.iteritems())
-        cv2.imwrite(mask, param_string+small_file)
+        cv2.imwrite(mask, os.path.join(os.path.dirname(filename),param_string, "_"+os.path.basename(filename)+".png"))
     else:
         #compare the current run with the saved files
+        #read saved mask, of format blahblahblah_dID_***.png
+        fileglob = os.path.join(os.path.dirname(filename), "*_"+os.path.basename(filename)+".png")
+        saved_files = glob.glob(fileglob)
+        if len(saved_files != 1):
+            print("Couldn't find a single saved file matching {}".format(fileglob))
+        else:
+            target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
+            print(np.count_nonzero(np.logical_xor(target, mask)))
