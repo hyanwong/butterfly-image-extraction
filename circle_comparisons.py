@@ -1,3 +1,4 @@
+'''Call this script as "python circle_comparisons.py save" to save the outlines to an image_dir'''
 from __future__ import division
 from __future__ import print_function
 import cv2
@@ -9,7 +10,6 @@ import re
 import glob
 
 from circle_detection import best_outline
-
 
 #csv file in the same dir as this script, as dataID, URL
 csv_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "circles.csv")
@@ -34,10 +34,7 @@ def get_images(csv_file, image_dir):
             filenames.append(names)
     return filenames
     
-save_contours=False
-
-testcases = get_images(csv_file, image_dir)
-for filenames in testcases:
+for filenames in get_images(csv_file, image_dir):
     small_file = filenames[1]
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
@@ -50,7 +47,7 @@ for filenames in testcases:
             circles +=1;
 
     filename = os.path.splitext(small_file)[0]
-    if save_contours:
+    if sys.argv[1] == "save":
         param_string = '+'.join("%s=%s" % (key,val) for (key,val) in params.iteritems())
         maskfile = os.path.basename(filename)+"_"+param_string+".png"
         print("Writing best case file {}".format(maskfile))
