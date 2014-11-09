@@ -58,7 +58,7 @@ for filenames in testcases:
         cv2.imwrite(os.path.join(os.path.dirname(filename),maskfile), mask)
     else:
         #compare the current run with the saved files
-        #read saved mask, of format blahblahblah_dID_***.png
+        #read saved mask, of format dID_blahblahblah_.png
         fileglob = os.path.join(os.path.dirname(filename), os.path.basename(filename)+"_*"+".png")
         saved_files = glob.glob(fileglob)
         if len(saved_files) != 1:

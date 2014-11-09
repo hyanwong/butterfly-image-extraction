@@ -52,10 +52,10 @@ def plot_circular_contour(c1img, accumulate_binary, displayname=None):
     function_param_names = {k:0 for k,v in locals().viewitems()}
 
     #define parameters as ints or strings here
-    window_width = int(round((min(c1img.shape[0],c1img.shape[1])/16 ))*2+1)  #parameter = 1/8 of minimum dimension of image - must be an odd number
+    window_width = int(round((min(c1img.shape[0],c1img.shape[1])/12))*2+1)  #parameter = 1/6 of minimum dimension of image - must be an odd number
     threshfunc = 'adaptiveThreshold'
     thresh_dist = 'ADAPTIVE_THRESH_GAUSSIAN_C' #cv2.ADAPTIVE_THRESH_MEAN_C worked better than cv2.ADAPTIVE_THRESH_GAUSSIAN_C with these parameters
-    C = 15
+    C = 10
     min_circumf = 45 #adjusted up from 25
     Qcut = 0.8 #adjusted down from 0.9
     cont_type = 'approxPolyDP'
