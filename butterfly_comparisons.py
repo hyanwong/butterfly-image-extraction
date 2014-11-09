@@ -9,8 +9,8 @@ import csv
 import re
 import glob
 import sys
-#from statsmodels import logit
-#import pandas as pd
+from statsmodels.formula.api import logit
+import pandas as pd
 
 from butterfly_detection import best_outline
 
@@ -74,8 +74,9 @@ if len(stats):
     stats = np.asarray(stats)
     masked_stats = np.ma.masked_array(stats,np.isnan(stats))
     #do logistic regression here
-#    dat = pd.DataFrame({"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:2]})
-#    logit_model = logit(formula = 'Butterfly \~ pr_but + floodfill_percent', df = dat).fit()
-#    print(logit_model.summary())
+#    dd = {"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:,2]}
+    dat = pd.DataFrame({"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:,2]})
+    logit_model = logit(formula = 'Butterfly ~ pr_but + floodfill_percent', data = dat).fit()
+    print(logit_model.summary())
     print("Mask disparity: {}".format(np.mean(masked_stats[:,0])))
 
