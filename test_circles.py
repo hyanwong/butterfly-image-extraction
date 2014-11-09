@@ -17,9 +17,7 @@ if os.path.isdir(image_folder):
             small_file = os.path.join(image_folder, img_file)
             print("opening {} (ID={})".format(small_file,  tmpID))
             img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-            best_circles(img, True)
+            params, mask = best_circles(img, True)
+            print(params)
         else:
             print("not a _580_360.jpg file")                
-
-
-

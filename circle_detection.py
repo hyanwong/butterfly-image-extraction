@@ -49,39 +49,45 @@ def savecontours(c1img, name):
 
 
 def plot_circular_contour(c1img, accumulate_binary, display=False):
+    function_param_names = {k:0 for k,v in locals().viewitems()}
+
+    #define parameters as ints or strings here
+    window_width = int(round((min(c1img.shape[0],c1img.shape[1])/16 ))*2+1)  #parameter = 1/8 of minimum dimension of image - must be an odd number
+    threshfunc = 'adaptiveThreshold'
+    thresh_dist = 'ADAPTIVE_THRESH_MEAN_C' #cv2.ADAPTIVE_THRESH_MEAN_C worked better than cv2.ADAPTIVE_THRESH_GAUSSIAN_C with these parameters
+    min_circumf = 45 #adjusted up from 25
+    Qcut = 0.8 #adjusted down from 0.9
+    cont_type = 'approxPolyDP'
+
+    params = {k:v for k,v in locals().viewitems() if (k not in function_param_names)}
+   
     if display:
         display_image=np.zeros((c1img.shape[0], c1img.shape[1]*3), np.uint8)
         display_image[:,0:c1img.shape[1]] = c1img
-
-    accum_params = []
-    #parameter = 1/8 of minimum dimension of image - must be an odd number
-    window_width = int(round((min(c1img.shape[0],c1img.shape[1])/16 ))*2+1)
-    #cv2.ADAPTIVE_THRESH_MEAN_C worked better than cv2.ADAPTIVE_THRESH_GAUSSIAN_C with these parameters
-    c1img = cv2.adaptiveThreshold(c1img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, window_width, 20)
+    
+    c1img = getattr(cv2, threshfunc)(c1img, 255, getattr(cv2, thresh_dist), cv2.THRESH_BINARY, window_width, 20)
+    
     smooth_contours = cv2.findContours(c1img.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
-    for c1 in smooth_contours:
-        c2 = cv2.approxPolyDP(c1,1,True)
-        a1 = cv2.contourArea(c1)
-        a2 = cv2.contourArea(c2)
-        l1 = cv2.arcLength(c1, True)
-        l2 = cv2.arcLength(c2, True)
+    for i in range(len(smooth_contours)):
+        cont = {'plain': smooth_contours[i], 'approxPolyDP': cv2.approxPolyDP(smooth_contours[i],1,True)}
+        area = {k: cv2.contourArea(c) for k, c in cont.items()}
+        length = {k: cv2.arcLength(c, True) for k, c in cont.items()}
 
         #print(l1)
         #if l1 > 40: #removed; does not give any unique circles 
-        if l2 > 45: #adjusted up from 25
-            Q2 = (4*np.pi*a2)/(l2*l2)
-            if Q2 > 0.8: #adjusted down from 0.9
-                cv2.drawContours(accumulate_binary, [c2], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
+        if length[cont_type] > min_circumf: 
+            Q = (4*np.pi*area[cont_type])/(length[cont_type]*length[cont_type])
+            if Q > Qcut: 
+                cv2.drawContours(accumulate_binary, [cont[cont_type]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
                 if display:
-                    cv2.drawContours(display_image[:,(c1img.shape[1]*2):(c1img.shape[1]*3)], [c2], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
+                    cv2.drawContours(display_image[:,(c1img.shape[1]*2):(c1img.shape[1]*3)], [cont[cont_type]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
 
     if display:
         display_image[:,c1img.shape[1]:(c1img.shape[1]*2)] = c1img
         cv2.imshow("c1c1c1, thresh, mask", display_image) #ADDED COMMA
         cv2.waitKey()
+    return(params)
 
-
-##main - accesses images in folder
 
 def best_circles(image_580_360, display=False):
     '''returns a binary mask image'''
@@ -90,13 +96,13 @@ def best_circles(image_580_360, display=False):
     im = img.astype(np.float32)+0.001 #to avoid division by 0
     c1c2c3 = np.arctan(im/np.dstack((cv2.max(im[...,1], im[...,2]), cv2.max(im[...,0], im[...,2]), cv2.max(im[...,0], im[...,1]))))
     bimg,gimg,rimg = cv2.split(c1c2c3)
-    rimg =(cv2.normalize(rimg, rimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1))
-    gimg = (cv2.normalize(gimg, gimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1))
-    bimg = (cv2.normalize(bimg, bimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1))
+    rimg = cv2.normalize(rimg, rimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
+    gimg = cv2.normalize(gimg, gimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
+    bimg = cv2.normalize(bimg, bimg, 0,255,cv2.NORM_MINMAX,dtype=cv2.cv.CV_8UC1)
     accumulation_mask = np.zeros((img.shape[0], img.shape[1]), np.uint8)
     plot_circular_contour(rimg, accumulation_mask, display)
     plot_circular_contour(gimg, accumulation_mask, display)
-    plot_circular_contour(bimg, accumulation_mask, display)
+    params = plot_circular_contour(bimg, accumulation_mask, display)
     
     #find circles in the accumulated mask
     contours = cv2.findContours(accumulation_mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
@@ -113,4 +119,4 @@ def best_circles(image_580_360, display=False):
         cv2.imshow("found circles", display_image) #ADDED COMMA
         cv2.waitKey()
     
-    return(accumulation_mask)
+    return(params, accumulation_mask)
