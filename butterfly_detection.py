@@ -149,59 +149,60 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
 
 ################## main script here
 
-contour_dir = "contours" #set to None unless you want to output params to model probability that a contour outline is a butterfly.
-folders = ["classification", "butterflies"];
-for folder in folders:
-    for the_file in os.listdir(folder):
-        file_path = os.path.join(folder, the_file)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-        except Exception, e:
-            print(e)
-
-images = 'RawDataIDs.csv' #If this is a folder, it should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it a filename, should be a csv file of ID,URL
-#images = 'images'
-if os.path.isdir(images):
-    pattern = re.compile("(.*)_580_360.jpg$");
-    for img_file in os.listdir(images):
-        match = pattern.search(img_file)
-        if match is not None:
-            tmpID = match.group(1)
-            small_file = os.path.join(images, img_file)
-            match_glob = os.path.join(images, tmpID+".*");
-            large_files = glob.glob(match_glob)
-            if len(large_files) ==1:
-                print("opening {} and {} (ID={})".format(small_file, large_files[0], tmpID))
-                best_outline(cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR), cv2.imread(large_files[0], cv2.CV_LOAD_IMAGE_COLOR), tmpID, contour_dir, folders[0], folders[1])
-            else:
-                print("problem with opening {}: found {} files when matching {}".format(small_file, len(large_files), match_glob))                
-else:
-    N = 400
-    random.seed(123)
-    #avoid slurping the whole file into memory by using reservoir sampling 
-    #code from http://data-analytics-tools.blogspot.co.uk/2009/09/reservoir-sampling-algorithm-in-perl.html
-    sample = [];
-    with open(images, 'r') as file:
-        header = file.readline().strip().split(',')
+if __name__ == "__main__":
+    contour_dir = "contours" #set to None unless you want to output params to model probability that a contour outline is a butterfly.
+    folders = ["classification", "butterflies"];
+    for folder in folders:
+        for the_file in os.listdir(folder):
+            file_path = os.path.join(folder, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception, e:
+                print(e)
     
-        for i,line in enumerate(file):
-            if i < N:
-                sample.append(line)
-            elif i >= N and random.random() < N/float(i+1):
-                replace = random.randint(0,len(sample)-1)
-                sample[replace] = line
-
-    print("using data objects ", end="")
-    print(", ".join([x.split(',',1)[0] for x in sample]))
-    for r in sample:
-        row = dict(zip(header, r.strip().split(','))) # r+1 so that we miss the first (header) row
-        row['fullsizeURL'] = row['URL'].replace("_260_190.jpg", "_orig.jpg")
-        print("Data_object {}: opening {}".format(row['ID'], row['URL'])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
-        req1 = urllib.urlopen(row['URL'])
-        arr1 = np.asarray(bytearray(req1.read()), dtype=np.uint8)
-        print("Data_object {}: opening {}".format(row['ID'], row['fullsizeURL']))
-        req2 = urllib.urlopen(row['fullsizeURL'])
-        arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
-        best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1])
+    images = 'RawDataIDs.csv' #If this is a folder, it should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it a filename, should be a csv file of ID,URL
+    #images = 'images'
+    if os.path.isdir(images):
+        pattern = re.compile("(.*)_580_360.jpg$");
+        for img_file in os.listdir(images):
+            match = pattern.search(img_file)
+            if match is not None:
+                tmpID = match.group(1)
+                small_file = os.path.join(images, img_file)
+                match_glob = os.path.join(images, tmpID+".*");
+                large_files = glob.glob(match_glob)
+                if len(large_files) ==1:
+                    print("opening {} and {} (ID={})".format(small_file, large_files[0], tmpID))
+                    best_outline(cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR), cv2.imread(large_files[0], cv2.CV_LOAD_IMAGE_COLOR), tmpID, contour_dir, folders[0], folders[1])
+                else:
+                    print("problem with opening {}: found {} files when matching {}".format(small_file, len(large_files), match_glob))                
+    else:
+        N = 400
+        random.seed(123)
+        #avoid slurping the whole file into memory by using reservoir sampling 
+        #code from http://data-analytics-tools.blogspot.co.uk/2009/09/reservoir-sampling-algorithm-in-perl.html
+        sample = [];
+        with open(images, 'r') as file:
+            header = file.readline().strip().split(',')
+        
+            for i,line in enumerate(file):
+                if i < N:
+                    sample.append(line)
+                elif i >= N and random.random() < N/float(i+1):
+                    replace = random.randint(0,len(sample)-1)
+                    sample[replace] = line
+    
+        print("using data objects ", end="")
+        print(", ".join([x.split(',',1)[0] for x in sample]))
+        for r in sample:
+            row = dict(zip(header, r.strip().split(','))) # r+1 so that we miss the first (header) row
+            row['fullsizeURL'] = row['URL'].replace("_260_190.jpg", "_orig.jpg")
+            print("Data_object {}: opening {}".format(row['ID'], row['URL'])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
+            req1 = urllib.urlopen(row['URL'])
+            arr1 = np.asarray(bytearray(req1.read()), dtype=np.uint8)
+            print("Data_object {}: opening {}".format(row['ID'], row['fullsizeURL']))
+            req2 = urllib.urlopen(row['fullsizeURL'])
+            arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
+            best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1])
 

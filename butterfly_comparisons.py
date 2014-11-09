@@ -12,7 +12,7 @@ from butterfly_detection import best_outline
 
 
 #csv file in the same dir as this script, as dataID, URL
-csv_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_butterflies.csv")
+csv_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_butterfly.csv")
 image_dir = "test_butterflies"
 
 def get_images(csv_file, image_dir):
