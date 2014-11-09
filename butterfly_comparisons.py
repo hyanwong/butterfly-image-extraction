@@ -9,8 +9,12 @@ import csv
 import re
 import glob
 import sys
-from statsmodels.formula.api import logit
-import pandas as pd
+try:
+    from statsmodels.formula.api import logit
+    import pandas as pd
+    do_logistic_regression = True
+except ImportError:
+    do_logistic_regression = False
 
 from butterfly_detection import best_outline
 
@@ -73,10 +77,10 @@ for filenames in get_images(csv_file, image_dir):
 if len(stats):
     stats = np.asarray(stats)
     masked_stats = np.ma.masked_array(stats,np.isnan(stats))
-    #do logistic regression here
-#    dd = {"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:,2]}
-    dat = pd.DataFrame({"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:,2]})
-    logit_model = logit(formula = 'Butterfly ~ pr_but + floodfill_percent', data = dat).fit()
-    print(logit_model.summary())
+
+    if do_logistic_regression:
+        dat = pd.DataFrame({"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:,2]})
+        logit_model = logit(formula = 'Butterfly ~ pr_but + floodfill_percent', data = dat).fit()
+        print(logit_model.summary())
     print("Mask disparity: {}".format(np.mean(masked_stats[:,0])))
 
