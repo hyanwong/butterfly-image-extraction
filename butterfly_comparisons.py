@@ -9,6 +9,8 @@ import csv
 import re
 import glob
 import sys
+#from statsmodels import logit
+#import pandas as pd
 
 from butterfly_detection import best_outline
 
@@ -60,7 +62,7 @@ for filenames in get_images(csv_file, image_dir):
         else:
             if len(saved_files) < 1:
                 #this is not a pinned butterfly - we should assess how well we have detected this
-                fit = nan
+                fit = np.nan
                 print("{}\t{}\t{}\t{}".format(large_file, large_img.shape[0:2], measure[0], measure[1]))
             else:
                 target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
@@ -72,9 +74,8 @@ if len(stats):
     stats = np.asarray(stats)
     masked_stats = np.ma.masked_array(stats,np.isnan(stats))
     #do logistic regression here
-    response = np.where(np.isnan(stats[:,0]), 0, 1)
-    print(reponse)
-    pr_but = stats[:,1]
-    floodfill_percent = stats[:2]
+#    dat = pd.DataFrame({"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:2]})
+#    logit_model = logit(formula = 'Butterfly \~ pr_but + floodfill_percent', df = dat).fit()
+#    print(logit_model.summary())
     print("Mask disparity: {}".format(np.mean(masked_stats[:,0])))
 
