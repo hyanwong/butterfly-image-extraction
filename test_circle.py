@@ -6,7 +6,7 @@ import os
 import re
 import sys
 
-from circle_detection import best_circles
+from circle_detection import best_outline
 
 for file in (sys.argv[1:]):
     small_file = str(file)
@@ -14,7 +14,7 @@ for file in (sys.argv[1:]):
 
     print("opening {} (ID={})".format(small_file,  dID))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-    params, mask = best_circles(img, True)
+    measures, params, mask = best_outline(img, True)
     #find circles in the accumulated mask
     contours = cv2.findContours(mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
     display_image=cv2.merge((mask,mask,mask)) ## Create a 3-channel display image
