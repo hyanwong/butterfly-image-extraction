@@ -38,10 +38,12 @@ save_contours=False
 
 testcases = get_images(csv_file, image_dir)
 for filenames in testcases:
+    large_file = filenames[0]
     small_file = filenames[1]
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
-    img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-    params, mask = best_outline(img)
+    large_img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
+    small_img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
+    measure, params, mask = best_outline(small_img, large_img, dID)
 
     filename = os.path.splitext(small_file)[0]
     if save_contours:
@@ -54,8 +56,11 @@ for filenames in testcases:
         #read saved mask, of format dID_blahblahblah_.png
         fileglob = os.path.join(os.path.dirname(filename), os.path.basename(filename)+"_*"+".png")
         saved_files = glob.glob(fileglob)
-        if len(saved_files) != 1:
-            print("Couldn't find a single saved file matching {}".format(fileglob))
+        if len(saved_files) > 1:
+            print("Multiple matching saved outlines for {}".format(fileglob))
+        elif len(saved_files) < 1:
+            #this is not a pinned butterfly - we should assess how well we have detected this
+            print(measure[0], measure[1])
         else:
             target = cv2.imread(saved_files[0], cv2.IMREAD_GRAYSCALE)
             print("{}\t{}".format(small_file,np.count_nonzero(np.logical_xor(target, mask))))

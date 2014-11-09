@@ -76,6 +76,7 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
     conservative_background = cv2.resize(conservative_background, (W, H))
     mask_after_grabcut = refine_background_via_grabcut(large_img, conservative_background)
     
+    floodfilled_percent = cv2.countNonZero(mask_after_flood) / mask_after_flood.shape[0] / mask_after_flood.shape[1] * 100
     butterfly_metrics = contour_metrics(mask_after_grabcut)
     
     if param_dir is not None:
@@ -90,7 +91,6 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
 
 
         idx_txt = " ".join(np.char.mod("%i", idx).flatten())
-        floodfilled_percent = cv2.countNonZero(mask_after_flood) / mask_after_flood.shape[0] / mask_after_flood.shape[1] * 100
         category = "good" if floodfilled_percent > flood_cutoff_percent else "bad"
         print("{} deemed {}, as largest {} flooded areas sum to {:0.2f} % (best contour IDs are {})".format(EoLobjectID, category, flood_cutoff_n_areas, floodfilled_percent, idx_txt))  
 
@@ -144,7 +144,7 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
             tiled.imwrite(composite_filename)
     best_mask = np.zeros((H, W), np.uint8)
     cv2.drawContours(best_mask, [contours[idx[best_model]]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
-    return(params, best_mask)
+    return((p[best_model], floodfilled_percent), params, best_mask)
 
 
 ################## main script here

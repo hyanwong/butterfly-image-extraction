@@ -90,7 +90,7 @@ def plot_circular_contour(c1img, accumulate_binary, displayname=None):
 
 
 def best_outline(image_580_360, display=False):
-    '''Returns a list of parameters for saving, plus a binary mask image'''
+    '''Returns the result (contour outlines), a list of parameters for saving, plus a binary mask image'''
     h, w = image_580_360.shape[0:2]
     img = image_580_360 #ADDED
     im = img.astype(np.float32)+0.001 #to avoid division by 0
@@ -103,5 +103,5 @@ def best_outline(image_580_360, display=False):
     plot_circular_contour(gimg, accumulation_mask,  "green" if display else None)
     plot_circular_contour(bimg, accumulation_mask,  "blue" if display else None)
     params = plot_circular_contour(rimg, accumulation_mask, "red" if display else None)
-        
-    return(params, accumulation_mask)
+    contours = cv2.findContours(accumulation_mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
+    return(contours, params, accumulation_mask)

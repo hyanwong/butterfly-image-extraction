@@ -41,8 +41,7 @@ for filenames in testcases:
     small_file = filenames[1]
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
     img = cv2.imread(small_file, cv2.CV_LOAD_IMAGE_COLOR)
-    params, mask = best_outline(img)
-    contours = cv2.findContours(mask.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)[0]
+    contours, params, mask = best_outline(img)
     circles=0
     for c in contours:
         if cv2.contourArea(c) < 100:
