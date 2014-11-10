@@ -82,5 +82,5 @@ if len(stats):
         dat = pd.DataFrame({"Butterfly": np.where(np.isnan(stats[:,0]), 0, 1), "pr_but":stats[:,1], "floodfill_percent":stats[:,2]})
         logit_model = logit(formula = 'Butterfly ~ pr_but + floodfill_percent', data = dat).fit()
         print(logit_model.summary())
-    print("Mask disparity: {}".format(np.mean(masked_stats[:,0])))
+    print("Av. mask disparity: {}".format(np.mean(masked_stats[:,0])))
 
