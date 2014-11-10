@@ -1,4 +1,4 @@
-'''Call this script as "python circle_comparisons.py save" to save the outlines to an image_dir'''
+'''Call this script as "python butterfly_comparisons.py save" to save the outlines to an image_dir'''
 from __future__ import division
 from __future__ import print_function
 import cv2
@@ -42,7 +42,7 @@ def get_images(csv_file, image_dir):
     return filenames
     
 stats = []
-for filenames in get_images(csv_file, image_dir):
+for filenames in reversed(get_images(csv_file, image_dir)):
     large_file = filenames[0]
     small_file = filenames[1]
     dID = re.sub("_580_360.jpg$", "", os.path.basename(small_file))
