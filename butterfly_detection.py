@@ -29,9 +29,10 @@ def refine_background_via_grabcut(img, is_background, dilate=False):
 
 def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_file_dir = None, butterfly_with_contour_file_dir = None, verbose = False):
     '''Process a small and a large butterfly file, under a certain objectID. If a param_dir is give, save potential butterfly outlines and relevant parameters there (useful 
-    for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If composite_file_dir is given, save a composite, tiled image 
-    of the various stages of background subtraction. If butterfly_with_contour_file_dir is given, save the final output in this dir
-    Returns a list of parameters for saving, plus a binary mask image.'''
+    for constructing logistic regression models to predict whether a contour is a butterfly shape or not). If composite_file_dir is the empty string, show a composite, tiled image 
+    of the various stages of background subtraction (and if it is a string, save the composite image to that dir).
+    If butterfly_with_contour_file_dir is given, save the final output in this dir.
+    Returns fit statistics, list of parameters for saving, plus a binary mask image.'''
 
     function_param_names = {k:0 for k,v in locals().viewitems()}
 
@@ -140,8 +141,11 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
             scaled = cv2.resize(contour_mask, None, fx=scale, fy=scale, interpolation = cv2.INTER_AREA)
             tiled.add(scaled, "Pr{{but}}={}".format(p[best_model]))
 
-            composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
-            tiled.imwrite(composite_filename)
+            if composite_file_dir:            
+                composite_filename = os.path.join(composite_file_dir,"{}_{}_{:02.0f}_{}.jpg".format(category, flood_param, floodfilled_percent, EoLobjectID))
+                tiled.imwrite(composite_filename)
+            else:
+                tiled.imshow("Composite for {}".format(EoLobjectID))
     best_mask = np.zeros((H, W), np.uint8)
     cv2.drawContours(best_mask, [contours[idx[best_model]]], -1, color=(255,255,255), thickness=cv2.cv.CV_FILLED)
     return((p[best_model], floodfilled_percent), params, best_mask)

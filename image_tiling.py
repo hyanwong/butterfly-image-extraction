@@ -46,3 +46,6 @@ class tiled_img:
 
     def imwrite(self, filename):
         cv2.imwrite(filename, self.main_image)
+
+    def imshow(self, name):
+        cv2.imshow(name, self.main_image)
