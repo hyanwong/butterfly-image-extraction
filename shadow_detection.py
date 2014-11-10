@@ -3,6 +3,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 
+#one possibility is to "eat in" from just ourside the edge of the contour until we hit a sharp edge
 
 def remove_shadows(img):
     '''Not yet implemented. To start, see A Statistical Approach for Real-time Robust Background Subtraction and Shadow Detection

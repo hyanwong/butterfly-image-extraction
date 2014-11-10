@@ -57,6 +57,7 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
     small_img = small_img[crop_top:(h-crop_bottom), crop_left:(w-crop_right),:]
 
     #remove non-linear noise, to cope with speckled backgrounds. A few rounds of filtering required
+    #as an alternative, can we try to spot consistently speckled backgrounds by looking for a connected mass of coherent pattern?
     despeckled = cv2.bilateralFilter(small_img, 5, 100, 100)
     despeckled = cv2.bilateralFilter(despeckled, 7, 50, 50)
     despeckled = cv2.bilateralFilter(despeckled, 9, 20, 20)
