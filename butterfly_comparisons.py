@@ -1,6 +1,9 @@
 '''Call this script as "python butterfly_comparisons.py" to download (if necessary) and run comparisons on all the images in "test_butterfly.csv"
    call this script as "python butterfly_comparisons.py save" to save the best outlines to an image_dir, or
    call this script as "python butterfly_comparisons.py imagefile_orig.jpg" to display to screen the best outline and a tiled image of the fitting steps'''
+
+#NB, this might be useful: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
+
 from __future__ import division
 from __future__ import print_function
 import cv2

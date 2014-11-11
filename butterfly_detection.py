@@ -57,10 +57,15 @@ def best_outline(small_img, large_img, EoLobjectID, param_dir = None, composite_
     small_img = small_img[crop_top:(h-crop_bottom), crop_left:(w-crop_right),:]
 
     #remove non-linear noise, to cope with speckled backgrounds. A few rounds of filtering required
-    #as an alternative, can we try to spot consistently speckled backgrounds by looking for a connected mass of coherent pattern?
+    
     despeckled = cv2.bilateralFilter(small_img, 5, 100, 100)
     despeckled = cv2.bilateralFilter(despeckled, 7, 50, 50)
     despeckled = cv2.bilateralFilter(despeckled, 9, 20, 20)
+
+    #NB: as an alternative, can we try to spot consistently speckled backgrounds by looking for a connected mass of coherent texture?
+    #keywords = "image segmentation" (not "background subtraction" which tends to be for video), "texture"
+    #e.g. by using Co-occurrence Matrices or the distribution of filter responses (http://research.microsoft.com/en-us/um/people/manik/pubs%5Cvarma05.pdf)
+    #This might be useful: http://pdf.aminer.org/000/312/189/image_segmentation_by_texture_analysis.pdf
 
     #use spatial mean-shift to unify the background colours without affecting edges where there is a distinct colour / intensity shift
     quantized = cv2.pyrMeanShiftFiltering(despeckled, 20, 20, 3)
@@ -166,8 +171,8 @@ if __name__ == "__main__":
             except Exception, e:
                 print(e)
     
-    images = 'RawDataIDs.csv' #If this is a folder, it should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it a filename, should be a csv file of ID,URL
-    #images = 'images'
+    #If this is a folder, it should contain ID_580_360.jpg files together with the full-sized ID.xxx files. If it a filename, should be a csv file of ID,URL    
+    images = 'butterflies.csv' if len(sys.argv) == 1 else sys.argv[1]
     if os.path.isdir(images):
         pattern = re.compile("(.*)_580_360.jpg$");
         for img_file in os.listdir(images):
@@ -188,26 +193,29 @@ if __name__ == "__main__":
         #avoid slurping the whole file into memory by using reservoir sampling 
         #code from http://data-analytics-tools.blogspot.co.uk/2009/09/reservoir-sampling-algorithm-in-perl.html
         sample = [];
-        with open(images, 'r') as file:
-            header = file.readline().strip().split(',')
-        
-            for i,line in enumerate(file):
-                if i < N:
-                    sample.append(line)
-                elif i >= N and random.random() < N/float(i+1):
-                    replace = random.randint(0,len(sample)-1)
-                    sample[replace] = line
-    
-        print("using data objects ", end="")
-        print(", ".join([x.split(',',1)[0] for x in sample]))
-        for r in sample:
-            row = dict(zip(header, r.strip().split(','))) # r+1 so that we miss the first (header) row
-            row['fullsizeURL'] = row['URL'].replace("_260_190.jpg", "_orig.jpg")
-            print("Data_object {}: opening {}".format(row['ID'], row['URL'])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
-            req1 = urllib.urlopen(row['URL'])
-            arr1 = np.asarray(bytearray(req1.read()), dtype=np.uint8)
-            print("Data_object {}: opening {}".format(row['ID'], row['fullsizeURL']))
-            req2 = urllib.urlopen(row['fullsizeURL'])
-            arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
-            best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1], verbose=True)
-
+        try:
+            with open(images, 'r') as file:
+                header = file.readline().strip().split(',')
+            
+                for i,line in enumerate(file):
+                    if i < N:
+                        sample.append(line)
+                    elif i >= N and random.random() < N/float(i+1):
+                        replace = random.randint(0,len(sample)-1)
+                        sample[replace] = line
+            
+            print("using data objects ", end="")
+            print(", ".join([x.split(',',1)[0] for x in sample]))
+            for r in sample:
+                row = dict(zip(header, r.strip().split(','))) # r+1 so that we miss the first (header) row
+                row['smallURL'] = re.sub("_\\w+.jpg", "_580_360.jpg",row['URL'])
+                row['largeURL'] = re.sub("_\\w+.jpg", "_orig.jpg",row['URL'])
+                print("Data_object {}: opening {}".format(row['ID'], row['smallURL'])) #to download these, try perl -ne 'if (/^Data_object (\d+): opening ([^_]*(.*)?\.(\w+))$/) {system "wget -O $1$3.$4 $2"}'
+                req1 = urllib.urlopen(row['smallURL'])
+                arr1 = np.asarray(bytearray(req1.read()), dtype=np.uint8)
+                print("Data_object {}: opening {}".format(row['ID'], row['largeURL']))
+                req2 = urllib.urlopen(row['largeURL'])
+                arr2 = np.asarray(bytearray(req2.read()), dtype=np.uint8)
+                best_outline(cv2.imdecode(arr1,cv2.CV_LOAD_IMAGE_COLOR), cv2.imdecode(arr2,cv2.CV_LOAD_IMAGE_COLOR), row['ID'], contour_dir, folders[0], folders[1], verbose=True)
+        except EnvironmentError: # parent of IOError, OSError *and* WindowsError where available
+            print("Couldn't open csv file {}".format(images))
