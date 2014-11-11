@@ -4,6 +4,8 @@ butterfly-image-extraction
 A collection of Python scripts to extract outlines of butterflies from pictures of pinned specimens, 
 with images assumed to be downloaded from the Encyclopedia of Life (http://eol.org).
 
+This work is licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License. To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/3.0/ or send a letter to Creative Commons, 444 Castro Street, Suite 900, Mountain View, California, 94041, USA.
+
 Images have a "data object ID", such as 26289989, which corresponds to the picture at http://eol.org/data_objects/26289989. They are usually assume to come in two versions: a low-resolution jpg (maximum 560x380 pixels), and a full resolution jpg. For example, for the image 26289989, these are located at http://media.eol.org/content/2013/09/22/03/25762_560_380.jpg and http://media.eol.org/content/2013/09/22/03/25762_orig.jpg
 
 The main file is butterfly_detection.py. You can either place a set of files in a folder and call 
